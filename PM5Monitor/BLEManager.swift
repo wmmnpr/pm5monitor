@@ -12,10 +12,12 @@ class BLEManager: NSObject, ObservableObject {
     @Published var isConnected = false
     @Published var devices: [CBPeripheral] = []
     @Published var currentWatts: Int = 0
+    @Published var forceHistory: [Double] = []
 
     // MARK: - PM5 UUIDs
 
     private let pm5RowingServiceUUID = CBUUID(string: "CE060030-43E5-11E4-916C-0800200C9A66")
+    private let strokeDataUUID = CBUUID(string: "CE060035-43E5-11E4-916C-0800200C9A66")
     private let additionalStrokeDataUUID = CBUUID(string: "CE060036-43E5-11E4-916C-0800200C9A66")
     private let additionalStatus2UUID = CBUUID(string: "CE060034-43E5-11E4-916C-0800200C9A66")
 
@@ -23,6 +25,7 @@ class BLEManager: NSObject, ObservableObject {
 
     private var centralManager: CBCentralManager!
     private var connectedPeripheral: CBPeripheral?
+    private let maxForceHistorySize = 20
 
     // MARK: - Init
 
@@ -37,7 +40,6 @@ class BLEManager: NSObject, ObservableObject {
         guard isBluetoothOn else { return }
         devices.removeAll()
         isScanning = true
-        // Scan for PM5 devices (they advertise with name "PM5")
         centralManager.scanForPeripherals(withServices: nil, options: [
             CBCentralManagerScanOptionAllowDuplicatesKey: false
         ])
@@ -68,6 +70,14 @@ class BLEManager: NSObject, ObservableObject {
         isConnected = false
         isConnecting = false
         currentWatts = 0
+        forceHistory.removeAll()
+    }
+
+    private func addForceToHistory(_ force: Double) {
+        forceHistory.append(force)
+        if forceHistory.count > maxForceHistorySize {
+            forceHistory.removeFirst()
+        }
     }
 }
 
@@ -87,7 +97,6 @@ extension BLEManager: CBCentralManagerDelegate {
 
     nonisolated func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String: Any], rssi RSSI: NSNumber) {
         Task { @MainActor in
-            // Only show PM5 devices
             guard let name = peripheral.name,
                   name.uppercased().contains("PM5") else { return }
 
@@ -129,7 +138,11 @@ extension BLEManager: CBPeripheralDelegate {
 
             for service in services {
                 if service.uuid == pm5RowingServiceUUID {
-                    peripheral.discoverCharacteristics([additionalStrokeDataUUID, additionalStatus2UUID], for: service)
+                    peripheral.discoverCharacteristics([
+                        strokeDataUUID,
+                        additionalStrokeDataUUID,
+                        additionalStatus2UUID
+                    ], for: service)
                 }
             }
         }
@@ -140,12 +153,8 @@ extension BLEManager: CBPeripheralDelegate {
             guard let characteristics = service.characteristics else { return }
 
             for characteristic in characteristics {
-                // Subscribe to notifications for power data
-                if characteristic.uuid == additionalStrokeDataUUID ||
-                   characteristic.uuid == additionalStatus2UUID {
-                    if characteristic.properties.contains(.notify) {
-                        peripheral.setNotifyValue(true, for: characteristic)
-                    }
+                if characteristic.properties.contains(.notify) {
+                    peripheral.setNotifyValue(true, for: characteristic)
                 }
             }
         }
@@ -155,24 +164,54 @@ extension BLEManager: CBPeripheralDelegate {
         Task { @MainActor in
             guard error == nil, let data = characteristic.value else { return }
 
-            // Parse watts from PM5 data
-            if characteristic.uuid == additionalStrokeDataUUID {
-                // Additional Stroke Data: bytes 3-4 are stroke power
-                if data.count >= 5 {
-                    let watts = Int(data[3]) + Int(data[4]) * 256
-                    if watts > 0 && watts < 2000 { // Sanity check
-                        currentWatts = watts
-                    }
-                }
-            } else if characteristic.uuid == additionalStatus2UUID {
-                // Additional Status 2: bytes 4-5 are average power
-                if data.count >= 6 {
-                    let watts = Int(data[4]) + Int(data[5]) * 256
-                    if watts > 0 && watts < 2000 && currentWatts == 0 {
-                        currentWatts = watts
-                    }
-                }
+            switch characteristic.uuid {
+            case strokeDataUUID:
+                parseStrokeData(data)
+            case additionalStrokeDataUUID:
+                parseAdditionalStrokeData(data)
+            case additionalStatus2UUID:
+                parseAdditionalStatus2(data)
+            default:
+                break
             }
+        }
+    }
+
+    // MARK: - Data Parsing
+
+    private func parseStrokeData(_ data: Data) {
+        // Stroke Data (CE060035):
+        // Bytes 12-13: Peak Drive Force (in lbs * 10)
+        // Bytes 14-15: Average Drive Force (in lbs * 10)
+        guard data.count >= 16 else { return }
+
+        let peakDriveForce = Double(Int(data[12]) + Int(data[13]) * 256) / 10.0
+        let avgDriveForce = Double(Int(data[14]) + Int(data[15]) * 256) / 10.0
+
+        if peakDriveForce > 0 && peakDriveForce < 500 {
+            addForceToHistory(peakDriveForce)
+        }
+    }
+
+    private func parseAdditionalStrokeData(_ data: Data) {
+        // Additional Stroke Data (CE060036):
+        // Bytes 3-4: Stroke Power (watts)
+        guard data.count >= 5 else { return }
+
+        let watts = Int(data[3]) + Int(data[4]) * 256
+        if watts > 0 && watts < 2000 {
+            currentWatts = watts
+        }
+    }
+
+    private func parseAdditionalStatus2(_ data: Data) {
+        // Additional Status 2 (CE060034):
+        // Bytes 4-5: Average Power (watts)
+        guard data.count >= 6 else { return }
+
+        let watts = Int(data[4]) + Int(data[5]) * 256
+        if watts > 0 && watts < 2000 && currentWatts == 0 {
+            currentWatts = watts
         }
     }
 }

@@ -8,30 +8,40 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            // Full screen camera with pose overlay
+            CameraPreviewView(session: camera.session)
+                .ignoresSafeArea()
 
-            VStack(spacing: 0) {
-                // Top: Camera with pose overlay
-                ZStack {
-                    CameraPreviewView(session: camera.session)
-                        .ignoresSafeArea(edges: .top)
+            PoseOverlayView(poses: camera.detectedPoses)
+                .ignoresSafeArea()
 
-                    PoseOverlayView(poses: camera.detectedPoses)
+            // Translucent overlays
+            VStack {
+                Spacer()
 
-                    // Connection status overlay
-                    if !ble.isConnected {
-                        VStack {
-                            Spacer()
-                            ConnectionOverlay(ble: ble)
-                                .padding()
-                        }
-                    }
+                // Force curve at bottom-left
+                HStack {
+                    ForceCurveView(forceData: ble.forceHistory)
+                        .frame(width: 150, height: 100)
+                        .padding()
+
+                    Spacer()
+
+                    // Watts display at bottom-right
+                    WattsOverlayView(watts: ble.currentWatts, isConnected: ble.isConnected)
+                        .padding()
                 }
-                .frame(maxHeight: .infinity)
+                .padding(.bottom, 30)
+            }
 
-                // Bottom: Watts display
-                WattsDisplayView(watts: ble.currentWatts, isConnected: ble.isConnected)
-                    .frame(height: 200)
+            // Connection overlay when not connected
+            if !ble.isConnected {
+                VStack {
+                    Spacer()
+                    ConnectionOverlay(ble: ble)
+                        .padding(.horizontal, 40)
+                        .padding(.bottom, 150)
+                }
             }
         }
         .onAppear {
@@ -43,40 +53,134 @@ struct ContentView: View {
     }
 }
 
-// MARK: - Watts Display
+// MARK: - Translucent Watts Overlay
 
-struct WattsDisplayView: View {
+struct WattsOverlayView: View {
     let watts: Int
     let isConnected: Bool
 
     var body: some View {
-        ZStack {
-            LinearGradient(
-                colors: [Color.black, Color(white: 0.15)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
+        VStack(spacing: 4) {
+            Text("\(watts)")
+                .font(.system(size: 72, weight: .bold, design: .rounded))
+                .foregroundColor(wattsColor)
 
-            VStack(spacing: 8) {
-                Text("\(watts)")
-                    .font(.system(size: 120, weight: .bold, design: .rounded))
-                    .foregroundColor(wattsColor)
-                    .minimumScaleFactor(0.5)
-
-                Text("WATTS")
-                    .font(.title3)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.gray)
-            }
+            Text("WATTS")
+                .font(.caption)
+                .fontWeight(.semibold)
+                .foregroundColor(.white.opacity(0.7))
         }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 16)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(.black.opacity(0.4))
+                .background(.ultraThinMaterial.opacity(0.3))
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+        )
     }
 
     var wattsColor: Color {
-        if !isConnected { return .gray }
+        if !isConnected { return .white.opacity(0.5) }
         if watts < 100 { return .green }
         if watts < 200 { return .yellow }
         if watts < 300 { return .orange }
         return .red
+    }
+}
+
+// MARK: - Force Curve View
+
+struct ForceCurveView: View {
+    let forceData: [Double]
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 12)
+                .fill(.black.opacity(0.4))
+                .background(.ultraThinMaterial.opacity(0.3))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("FORCE")
+                    .font(.caption2)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.white.opacity(0.7))
+
+                GeometryReader { geometry in
+                    if forceData.isEmpty {
+                        // Placeholder curve
+                        Path { path in
+                            let width = geometry.size.width
+                            let height = geometry.size.height
+                            path.move(to: CGPoint(x: 0, y: height))
+                            path.addQuadCurve(
+                                to: CGPoint(x: width, y: height),
+                                control: CGPoint(x: width * 0.4, y: height * 0.3)
+                            )
+                        }
+                        .stroke(Color.cyan.opacity(0.3), lineWidth: 2)
+                    } else {
+                        // Actual force curve
+                        ForceCurvePath(data: forceData, size: geometry.size)
+                            .stroke(
+                                LinearGradient(
+                                    colors: [.cyan, .blue],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                ),
+                                lineWidth: 2
+                            )
+
+                        // Fill under curve
+                        ForceCurvePath(data: forceData, size: geometry.size, closed: true)
+                            .fill(
+                                LinearGradient(
+                                    colors: [.cyan.opacity(0.4), .blue.opacity(0.1)],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
+                    }
+                }
+            }
+            .padding(10)
+        }
+    }
+}
+
+struct ForceCurvePath: Shape {
+    let data: [Double]
+    let size: CGSize
+    var closed: Bool = false
+
+    func path(in rect: CGRect) -> Path {
+        guard data.count > 1 else {
+            return Path()
+        }
+
+        let maxForce = data.max() ?? 1
+        let stepX = size.width / CGFloat(data.count - 1)
+
+        var path = Path()
+        path.move(to: CGPoint(x: 0, y: size.height))
+
+        for (index, force) in data.enumerated() {
+            let x = CGFloat(index) * stepX
+            let y = size.height - (CGFloat(force / maxForce) * size.height * 0.9)
+            if index == 0 {
+                path.addLine(to: CGPoint(x: x, y: y))
+            } else {
+                path.addLine(to: CGPoint(x: x, y: y))
+            }
+        }
+
+        if closed {
+            path.addLine(to: CGPoint(x: size.width, y: size.height))
+            path.closeSubpath()
+        }
+
+        return path
     }
 }
 
@@ -108,7 +212,7 @@ struct ConnectionOverlay: View {
                             }
                             .padding()
                             .frame(maxWidth: .infinity)
-                            .background(Color.blue)
+                            .background(Color.blue.opacity(0.8))
                             .foregroundColor(.white)
                             .cornerRadius(10)
                         }
@@ -129,7 +233,7 @@ struct ConnectionOverlay: View {
                     }
                     .padding()
                     .frame(maxWidth: .infinity)
-                    .background(Color.blue)
+                    .background(Color.blue.opacity(0.8))
                     .foregroundColor(.white)
                     .cornerRadius(10)
                 }
@@ -188,35 +292,26 @@ struct PoseView: View {
     let pose: DetectedPose
     let size: CGSize
 
-    // Body connections for skeleton
     let connections: [(VNHumanBodyPoseObservation.JointName, VNHumanBodyPoseObservation.JointName)] = [
-        // Torso
         (.neck, .root),
         (.leftShoulder, .rightShoulder),
         (.leftHip, .rightHip),
-        // Left arm
         (.leftShoulder, .leftElbow),
         (.leftElbow, .leftWrist),
-        // Right arm
         (.rightShoulder, .rightElbow),
         (.rightElbow, .rightWrist),
-        // Left leg
         (.leftHip, .leftKnee),
         (.leftKnee, .leftAnkle),
-        // Right leg
         (.rightHip, .rightKnee),
         (.rightKnee, .rightAnkle),
-        // Shoulders to neck
         (.leftShoulder, .neck),
         (.rightShoulder, .neck),
-        // Hips to root
         (.leftHip, .root),
         (.rightHip, .root),
     ]
 
     var body: some View {
         ZStack {
-            // Draw skeleton lines
             ForEach(connections.indices, id: \.self) { index in
                 let connection = connections[index]
                 if let from = pose.points[connection.0],
@@ -225,11 +320,10 @@ struct PoseView: View {
                         path.move(to: transformPoint(from))
                         path.addLine(to: transformPoint(to))
                     }
-                    .stroke(Color.green, lineWidth: 3)
+                    .stroke(Color.green.opacity(0.8), lineWidth: 3)
                 }
             }
 
-            // Draw joint points
             ForEach(Array(pose.points.keys), id: \.rawValue) { joint in
                 if let point = pose.points[joint] {
                     Circle()
@@ -242,8 +336,6 @@ struct PoseView: View {
     }
 
     func transformPoint(_ point: CGPoint) -> CGPoint {
-        // Vision coordinates are normalized (0-1) with origin at bottom-left
-        // Need to flip Y and scale to view size
         CGPoint(
             x: point.x * size.width,
             y: (1 - point.y) * size.height
