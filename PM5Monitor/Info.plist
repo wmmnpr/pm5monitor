@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>NSBluetoothAlwaysUsageDescription</key>
+    <string>PM5 Monitor needs Bluetooth to connect to your Concept2 PM5 and display watts.</string>
+    <key>NSBluetoothPeripheralUsageDescription</key>
+    <string>PM5 Monitor needs Bluetooth to connect to your Concept2 PM5 and display watts.</string>
+    <key>NSCameraUsageDescription</key>
+    <string>PM5 Monitor uses the camera to track your body position while cycling.</string>
+    <key>UIRequiredDeviceCapabilities</key>
+    <array>
+        <string>bluetooth-le</string>
+        <string>arm64</string>
+    </array>
+</dict>
+</plist>

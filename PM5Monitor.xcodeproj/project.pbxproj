@@ -1,0 +1,245 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A10001 /* PM5MonitorApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002 /* PM5MonitorApp.swift */; };
+		A10003 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10004 /* ContentView.swift */; };
+		A10005 /* BLEManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10006 /* BLEManager.swift */; };
+		A10009 /* CameraManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000A /* CameraManager.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		A10002 /* PM5MonitorApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PM5MonitorApp.swift; sourceTree = "<group>"; };
+		A10004 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		A10006 /* BLEManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BLEManager.swift; sourceTree = "<group>"; };
+		A10007 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A10008 /* PM5Monitor.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PM5Monitor.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A1000A /* CameraManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraManager.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A10020 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A10030 = {
+			isa = PBXGroup;
+			children = (
+				A10031 /* PM5Monitor */,
+				A10032 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A10031 /* PM5Monitor */ = {
+			isa = PBXGroup;
+			children = (
+				A10002 /* PM5MonitorApp.swift */,
+				A10004 /* ContentView.swift */,
+				A10006 /* BLEManager.swift */,
+				A1000A /* CameraManager.swift */,
+				A10007 /* Info.plist */,
+			);
+			path = PM5Monitor;
+			sourceTree = "<group>";
+		};
+		A10032 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A10008 /* PM5Monitor.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A10040 /* PM5Monitor */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A10050 /* Build configuration list for PBXNativeTarget "PM5Monitor" */;
+			buildPhases = (
+				A10041 /* Sources */,
+				A10020 /* Frameworks */,
+				A10042 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = PM5Monitor;
+			productName = PM5Monitor;
+			productReference = A10008 /* PM5Monitor.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A10060 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 1500;
+			};
+			buildConfigurationList = A10061 /* Build configuration list for PBXProject "PM5Monitor" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = A10030;
+			productRefGroup = A10032 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A10040 /* PM5Monitor */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A10042 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A10041 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10001 /* PM5MonitorApp.swift in Sources */,
+				A10003 /* ContentView.swift in Sources */,
+				A10005 /* BLEManager.swift in Sources */,
+				A10009 /* CameraManager.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		A10070 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_TESTABILITY = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		A10071 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		A10072 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = CGJD95J3X3;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = PM5Monitor/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "PM5 Monitor";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.PM5Monitor;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		A10073 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = CGJD95J3X3;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = PM5Monitor/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "PM5 Monitor";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.PM5Monitor;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A10050 /* Build configuration list for PBXNativeTarget "PM5Monitor" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A10072 /* Debug */,
+				A10073 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A10061 /* Build configuration list for PBXProject "PM5Monitor" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A10070 /* Debug */,
+				A10071 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = A10060 /* Project object */;
+}
