@@ -18,6 +18,15 @@
 		A10013 /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10014 /* AuthService.swift */; };
 		A10015 /* LobbyService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10016 /* LobbyService.swift */; };
 		A10017 /* RaceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10018 /* RaceService.swift */; };
+		A10019 /* FirebaseConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1001A /* FirebaseConfig.swift */; };
+		A1001B /* WalletService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1001C /* WalletService.swift */; };
+		A1001D /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1001E /* LoginView.swift */; };
+		A1001F /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10020 /* MainTabView.swift */; };
+		A10021 /* LobbyListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10022 /* LobbyListView.swift */; };
+		A10023 /* CreateLobbyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10024 /* CreateLobbyView.swift */; };
+		A10025 /* LobbyDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10026 /* LobbyDetailView.swift */; };
+		A10027 /* RaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10028 /* RaceView.swift */; };
+		A10029 /* WalletView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1002A /* WalletView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -34,10 +43,19 @@
 		A10014 /* AuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthService.swift; sourceTree = "<group>"; };
 		A10016 /* LobbyService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LobbyService.swift; sourceTree = "<group>"; };
 		A10018 /* RaceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RaceService.swift; sourceTree = "<group>"; };
+		A1001A /* FirebaseConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirebaseConfig.swift; sourceTree = "<group>"; };
+		A1001C /* WalletService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WalletService.swift; sourceTree = "<group>"; };
+		A1001E /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
+		A10020 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
+		A10022 /* LobbyListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LobbyListView.swift; sourceTree = "<group>"; };
+		A10024 /* CreateLobbyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateLobbyView.swift; sourceTree = "<group>"; };
+		A10026 /* LobbyDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LobbyDetailView.swift; sourceTree = "<group>"; };
+		A10028 /* RaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RaceView.swift; sourceTree = "<group>"; };
+		A1002A /* WalletView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WalletView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		A10020 /* Frameworks */ = {
+		A10030 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -47,19 +65,21 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		A10030 = {
+		A10040 = {
 			isa = PBXGroup;
 			children = (
-				A10031 /* PM5Monitor */,
-				A10032 /* Products */,
+				A10041 /* PM5Monitor */,
+				A10042 /* Products */,
 			);
 			sourceTree = "<group>";
 		};
-		A10031 /* PM5Monitor */ = {
+		A10041 /* PM5Monitor */ = {
 			isa = PBXGroup;
 			children = (
-				A10033 /* Models */,
-				A10034 /* Services */,
+				A10043 /* Config */,
+				A10044 /* Models */,
+				A10045 /* Services */,
+				A10046 /* Views */,
 				A10002 /* PM5MonitorApp.swift */,
 				A10004 /* ContentView.swift */,
 				A10006 /* BLEManager.swift */,
@@ -69,7 +89,7 @@
 			path = PM5Monitor;
 			sourceTree = "<group>";
 		};
-		A10032 /* Products */ = {
+		A10042 /* Products */ = {
 			isa = PBXGroup;
 			children = (
 				A10008 /* PM5Monitor.app */,
@@ -77,7 +97,15 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
-		A10033 /* Models */ = {
+		A10043 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				A1001A /* FirebaseConfig.swift */,
+			);
+			path = Config;
+			sourceTree = "<group>";
+		};
+		A10044 /* Models */ = {
 			isa = PBXGroup;
 			children = (
 				A1000C /* RowingMetrics.swift */,
@@ -88,26 +116,73 @@
 			path = Models;
 			sourceTree = "<group>";
 		};
-		A10034 /* Services */ = {
+		A10045 /* Services */ = {
 			isa = PBXGroup;
 			children = (
 				A10014 /* AuthService.swift */,
 				A10016 /* LobbyService.swift */,
 				A10018 /* RaceService.swift */,
+				A1001C /* WalletService.swift */,
 			);
 			path = Services;
+			sourceTree = "<group>";
+		};
+		A10046 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				A10047 /* Auth */,
+				A10048 /* Lobby */,
+				A10049 /* Race */,
+				A1004A /* Wallet */,
+				A10020 /* MainTabView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		A10047 /* Auth */ = {
+			isa = PBXGroup;
+			children = (
+				A1001E /* LoginView.swift */,
+			);
+			path = Auth;
+			sourceTree = "<group>";
+		};
+		A10048 /* Lobby */ = {
+			isa = PBXGroup;
+			children = (
+				A10022 /* LobbyListView.swift */,
+				A10024 /* CreateLobbyView.swift */,
+				A10026 /* LobbyDetailView.swift */,
+			);
+			path = Lobby;
+			sourceTree = "<group>";
+		};
+		A10049 /* Race */ = {
+			isa = PBXGroup;
+			children = (
+				A10028 /* RaceView.swift */,
+			);
+			path = Race;
+			sourceTree = "<group>";
+		};
+		A1004A /* Wallet */ = {
+			isa = PBXGroup;
+			children = (
+				A1002A /* WalletView.swift */,
+			);
+			path = Wallet;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		A10040 /* PM5Monitor */ = {
+		A10050 /* PM5Monitor */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = A10050 /* Build configuration list for PBXNativeTarget "PM5Monitor" */;
+			buildConfigurationList = A10060 /* Build configuration list for PBXNativeTarget "PM5Monitor" */;
 			buildPhases = (
-				A10041 /* Sources */,
-				A10020 /* Frameworks */,
-				A10042 /* Resources */,
+				A10051 /* Sources */,
+				A10030 /* Frameworks */,
+				A10052 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -121,14 +196,14 @@
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
-		A10060 /* Project object */ = {
+		A10070 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 1500;
 				LastUpgradeCheck = 1500;
 			};
-			buildConfigurationList = A10061 /* Build configuration list for PBXProject "PM5Monitor" */;
+			buildConfigurationList = A10071 /* Build configuration list for PBXProject "PM5Monitor" */;
 			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -136,18 +211,18 @@
 				en,
 				Base,
 			);
-			mainGroup = A10030;
-			productRefGroup = A10032 /* Products */;
+			mainGroup = A10040;
+			productRefGroup = A10042 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				A10040 /* PM5Monitor */,
+				A10050 /* PM5Monitor */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		A10042 /* Resources */ = {
+		A10052 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -157,7 +232,7 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		A10041 /* Sources */ = {
+		A10051 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -172,13 +247,22 @@
 				A10013 /* AuthService.swift in Sources */,
 				A10015 /* LobbyService.swift in Sources */,
 				A10017 /* RaceService.swift in Sources */,
+				A10019 /* FirebaseConfig.swift in Sources */,
+				A1001B /* WalletService.swift in Sources */,
+				A1001D /* LoginView.swift in Sources */,
+				A1001F /* MainTabView.swift in Sources */,
+				A10021 /* LobbyListView.swift in Sources */,
+				A10023 /* CreateLobbyView.swift in Sources */,
+				A10025 /* LobbyDetailView.swift in Sources */,
+				A10027 /* RaceView.swift in Sources */,
+				A10029 /* WalletView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
-		A10070 /* Debug */ = {
+		A10080 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -196,7 +280,7 @@
 			};
 			name = Debug;
 		};
-		A10071 /* Release */ = {
+		A10081 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -212,7 +296,7 @@
 			};
 			name = Release;
 		};
-		A10072 /* Debug */ = {
+		A10082 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
@@ -221,7 +305,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = PM5Monitor/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "PM5 Monitor";
+				INFOPLIST_KEY_CFBundleDisplayName = "PM5 Racing";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -237,7 +321,7 @@
 			};
 			name = Debug;
 		};
-		A10073 /* Release */ = {
+		A10083 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
@@ -246,7 +330,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = PM5Monitor/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "PM5 Monitor";
+				INFOPLIST_KEY_CFBundleDisplayName = "PM5 Racing";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -265,25 +349,25 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		A10050 /* Build configuration list for PBXNativeTarget "PM5Monitor" */ = {
+		A10060 /* Build configuration list for PBXNativeTarget "PM5Monitor" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				A10072 /* Debug */,
-				A10073 /* Release */,
+				A10082 /* Debug */,
+				A10083 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		A10061 /* Build configuration list for PBXProject "PM5Monitor" */ = {
+		A10071 /* Build configuration list for PBXProject "PM5Monitor" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				A10070 /* Debug */,
-				A10071 /* Release */,
+				A10080 /* Debug */,
+				A10081 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
-	rootObject = A10060 /* Project object */;
+	rootObject = A10070 /* Project object */;
 }

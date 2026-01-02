@@ -5,6 +5,7 @@ import UIKit
 class CameraManager: NSObject, ObservableObject {
 
     @MainActor @Published var detectedPoses: [DetectedPose] = []
+    @MainActor @Published var isRunning: Bool = false
 
     let session = AVCaptureSession()
     private let videoOutput = AVCaptureVideoDataOutput()
@@ -122,6 +123,9 @@ class CameraManager: NSObject, ObservableObject {
         guard !session.isRunning else { return }
         processingQueue.async { [weak self] in
             self?.session.startRunning()
+            Task { @MainActor [weak self] in
+                self?.isRunning = true
+            }
         }
     }
 
@@ -129,6 +133,9 @@ class CameraManager: NSObject, ObservableObject {
         guard session.isRunning else { return }
         processingQueue.async { [weak self] in
             self?.session.stopRunning()
+            Task { @MainActor [weak self] in
+                self?.isRunning = false
+            }
         }
     }
 }
