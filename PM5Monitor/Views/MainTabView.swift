@@ -5,7 +5,6 @@ struct MainTabView: View {
     @StateObject private var lobbyService = LobbyService()
     @StateObject private var raceService = RaceService()
     @StateObject private var bleManager = BLEManager()
-    @StateObject private var cameraManager = CameraManager()
 
     @State private var selectedTab = 0
 
@@ -16,20 +15,16 @@ struct MainTabView: View {
                 if raceService.raceState.isRacing {
                     RaceView(
                         raceService: raceService,
-                        bleManager: bleManager,
-                        cameraManager: cameraManager
+                        bleManager: bleManager
                     )
                 } else {
                     TabView(selection: $selectedTab) {
                         // Home / Training
-                        TrainingView(
-                            bleManager: bleManager,
-                            cameraManager: cameraManager
-                        )
-                        .tabItem {
-                            Label("Train", systemImage: "figure.rowing")
-                        }
-                        .tag(0)
+                        TrainingView(bleManager: bleManager)
+                            .tabItem {
+                                Label("Train", systemImage: "figure.rowing")
+                            }
+                            .tag(0)
 
                         // Race Lobbies
                         LobbyListView(
@@ -66,61 +61,67 @@ struct MainTabView: View {
     }
 }
 
-// MARK: - Training View (existing functionality)
+// MARK: - Training View
 
 struct TrainingView: View {
     @ObservedObject var bleManager: BLEManager
-    @ObservedObject var cameraManager: CameraManager
 
     var body: some View {
         NavigationStack {
             ZStack {
-                // Camera preview
-                if cameraManager.isRunning {
-                    CameraPreviewView(session: cameraManager.session)
-                        .ignoresSafeArea()
-                } else {
-                    Color.black.ignoresSafeArea()
-                }
+                Color.black.ignoresSafeArea()
 
-                // Overlays
-                VStack {
-                    Spacer()
-
-                    HStack(alignment: .bottom) {
-                        // Force curve
-                        ForceCurveView(forceData: bleManager.forceHistory)
-                            .frame(width: 150, height: 100)
-
-                        Spacer()
-
-                        // Watts display
-                        WattsOverlayView(watts: bleManager.currentWatts, isConnected: bleManager.isConnected)
-                    }
-                    .padding()
-                }
-
-                // Connection overlay
-                if !bleManager.isConnected {
-                    ConnectionOverlay(ble: bleManager)
-                }
-
-                // Metrics overlay when connected
                 if bleManager.isConnected {
-                    VStack {
+                    // Main training display
+                    VStack(spacing: 0) {
+                        // Top metrics bar
                         MetricsBar(metrics: bleManager.currentMetrics)
+                            .padding(.top)
+
                         Spacer()
+
+                        // Center: Large watts display
+                        VStack(spacing: 8) {
+                            Text("\(bleManager.currentWatts)")
+                                .font(.system(size: 120, weight: .bold, design: .rounded))
+                                .foregroundColor(.white)
+
+                            Text("WATTS")
+                                .font(.title3.weight(.semibold))
+                                .foregroundColor(.gray)
+                        }
+
+                        Spacer()
+
+                        // Bottom: Force curve and additional metrics
+                        HStack(alignment: .bottom, spacing: 24) {
+                            // Force curve
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("FORCE CURVE")
+                                    .font(.caption2)
+                                    .foregroundColor(.gray)
+                                ForceCurveView(forceData: bleManager.forceHistory)
+                                    .frame(width: 160, height: 80)
+                            }
+
+                            Spacer()
+
+                            // Additional metrics
+                            VStack(alignment: .trailing, spacing: 12) {
+                                MetricDisplay(title: "PACE", value: bleManager.currentMetrics.formattedPace, unit: "/500m")
+                                MetricDisplay(title: "S/M", value: "\(bleManager.currentMetrics.strokeRate)", unit: "")
+                            }
+                        }
+                        .padding()
+                        .padding(.bottom, 20)
                     }
+                } else {
+                    // Connection overlay
+                    ConnectionOverlay(ble: bleManager)
                 }
             }
             .navigationTitle("Training")
             .navigationBarTitleDisplayMode(.inline)
-            .onAppear {
-                cameraManager.startSession()
-            }
-            .onDisappear {
-                cameraManager.stopSession()
-            }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -133,6 +134,32 @@ struct TrainingView: View {
                         Image(systemName: bleManager.isConnected ? "link.circle.fill" : "link.circle")
                             .foregroundColor(bleManager.isConnected ? .green : .gray)
                     }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Metric Display
+
+struct MetricDisplay: View {
+    let title: String
+    let value: String
+    let unit: String
+
+    var body: some View {
+        VStack(alignment: .trailing, spacing: 2) {
+            Text(title)
+                .font(.caption2)
+                .foregroundColor(.gray)
+            HStack(alignment: .firstTextBaseline, spacing: 2) {
+                Text(value)
+                    .font(.system(size: 28, weight: .bold, design: .monospaced))
+                    .foregroundColor(.white)
+                if !unit.isEmpty {
+                    Text(unit)
+                        .font(.caption)
+                        .foregroundColor(.gray)
                 }
             }
         }
@@ -202,9 +229,16 @@ struct ProfileView: View {
                     .padding(.vertical, 8)
                 }
 
-                // Stats section
+                // Concept2 Stats
                 if let profile = authService.userProfile {
-                    Section("Statistics") {
+                    Section("Concept2 Profile") {
+                        StatRow(title: "Lifetime Meters", value: profile.formattedLifetimeMeters)
+                    }
+                }
+
+                // Race Stats section
+                if let profile = authService.userProfile {
+                    Section("Race Statistics") {
                         StatRow(title: "Skill Rating", value: "\(profile.skillRating)")
                         StatRow(title: "Total Races", value: "\(profile.totalRaces)")
                         StatRow(title: "Wins", value: "\(profile.totalWins)")

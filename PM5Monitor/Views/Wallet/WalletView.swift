@@ -70,7 +70,7 @@ struct ConnectWalletPrompt: View {
             Text("Connect Your Wallet")
                 .font(.title2.bold())
 
-            Text("Link your Ethereum wallet to deposit USDC and participate in races")
+            Text("Link your Ethereum wallet to deposit ETH and participate in races")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -154,39 +154,35 @@ struct BalanceCard: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             HStack(spacing: 24) {
-                // USDC Balance
+                // ETH Balance
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 8) {
                         Circle()
-                            .fill(Color.blue)
-                            .frame(width: 32, height: 32)
+                            .fill(
+                                LinearGradient(
+                                    colors: [.blue, .purple],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .frame(width: 40, height: 40)
                             .overlay(
-                                Text("$")
-                                    .font(.headline)
+                                Image(systemName: "diamond.fill")
+                                    .font(.system(size: 16))
                                     .foregroundColor(.white)
                             )
 
-                        VStack(alignment: .leading) {
-                            Text("USDC")
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("ETH")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
-                            Text(walletService.formattedUSDCBalance)
+                            Text(walletService.formattedETHBalance)
                                 .font(.title2.bold())
                         }
                     }
                 }
 
                 Spacer()
-
-                // ETH Balance (for gas)
-                VStack(alignment: .trailing, spacing: 4) {
-                    Text("ETH (for gas)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Text(walletService.formattedETHBalance)
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
             }
         }
         .padding()
@@ -367,7 +363,7 @@ struct DepositSheet: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 24) {
-                Text("Enter the amount of USDC to deposit from your wallet")
+                Text("Enter the amount of ETH to deposit for race entry fees")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
@@ -375,16 +371,12 @@ struct DepositSheet: View {
 
                 // Amount input
                 HStack {
-                    Text("$")
-                        .font(.largeTitle)
-                        .foregroundColor(.secondary)
-
-                    TextField("0", text: $amount)
+                    TextField("0.00", text: $amount)
                         .font(.system(size: 48, weight: .bold))
                         .keyboardType(.decimalPad)
                         .multilineTextAlignment(.center)
 
-                    Text("USDC")
+                    Text("ETH")
                         .font(.title2)
                         .foregroundColor(.secondary)
                 }
@@ -392,10 +384,10 @@ struct DepositSheet: View {
 
                 // Quick amounts
                 HStack(spacing: 12) {
-                    QuickAmountButton(amount: "10", selectedAmount: $amount)
-                    QuickAmountButton(amount: "25", selectedAmount: $amount)
-                    QuickAmountButton(amount: "50", selectedAmount: $amount)
-                    QuickAmountButton(amount: "100", selectedAmount: $amount)
+                    QuickAmountButton(amount: "0.01", selectedAmount: $amount)
+                    QuickAmountButton(amount: "0.025", selectedAmount: $amount)
+                    QuickAmountButton(amount: "0.05", selectedAmount: $amount)
+                    QuickAmountButton(amount: "0.1", selectedAmount: $amount)
                 }
 
                 Spacer()
@@ -416,7 +408,7 @@ struct DepositSheet: View {
                 .padding(.horizontal)
             }
             .padding()
-            .navigationTitle("Deposit USDC")
+            .navigationTitle("Deposit ETH")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -437,10 +429,10 @@ struct QuickAmountButton: View {
         Button {
             selectedAmount = amount
         } label: {
-            Text("$\(amount)")
+            Text("\(amount)")
                 .font(.subheadline.weight(.medium))
                 .foregroundColor(selectedAmount == amount ? .white : .primary)
-                .padding(.horizontal, 16)
+                .padding(.horizontal, 12)
                 .padding(.vertical, 8)
                 .background(selectedAmount == amount ? Color.cyan : Color(.tertiarySystemGroupedBackground))
                 .cornerRadius(20)
@@ -459,7 +451,7 @@ struct WithdrawSheet: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 24) {
-                Text("Enter the amount of USDC to withdraw to your wallet")
+                Text("Enter the amount of ETH to withdraw to your wallet")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
@@ -467,16 +459,12 @@ struct WithdrawSheet: View {
 
                 // Amount input
                 HStack {
-                    Text("$")
-                        .font(.largeTitle)
-                        .foregroundColor(.secondary)
-
-                    TextField("0", text: $amount)
+                    TextField("0.00", text: $amount)
                         .font(.system(size: 48, weight: .bold))
                         .keyboardType(.decimalPad)
                         .multilineTextAlignment(.center)
 
-                    Text("USDC")
+                    Text("ETH")
                         .font(.title2)
                         .foregroundColor(.secondary)
                 }
@@ -485,10 +473,10 @@ struct WithdrawSheet: View {
                 // Available balance
                 HStack {
                     Text("Available:")
-                    Text(walletService.formattedUSDCBalance)
+                    Text(walletService.formattedETHBalance)
                         .fontWeight(.semibold)
                     Button("Max") {
-                        // Set max amount
+                        amount = String(format: "%.4f", walletService.ethBalance)
                     }
                     .font(.caption)
                     .foregroundColor(.cyan)
@@ -514,7 +502,7 @@ struct WithdrawSheet: View {
                 .padding(.horizontal)
             }
             .padding()
-            .navigationTitle("Withdraw USDC")
+            .navigationTitle("Withdraw ETH")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

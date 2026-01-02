@@ -126,14 +126,14 @@ struct LobbyHeaderCard: View {
 
             // Entry fee
             HStack(spacing: 8) {
-                Image(systemName: "dollarsign.circle.fill")
-                    .foregroundColor(.green)
-                Text("\(Int(lobby.entryFeeUSDC)) USDC Entry")
+                Image(systemName: "diamond.fill")
+                    .foregroundColor(.purple)
+                Text("\(lobby.formattedEntryFee) Entry")
                     .font(.headline)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
-            .background(Color.green.opacity(0.2))
+            .background(Color.purple.opacity(0.2))
             .cornerRadius(20)
 
             // Payout mode
@@ -154,11 +154,11 @@ struct PrizePoolCard: View {
     let lobby: Lobby
 
     private var totalPool: Double {
-        lobby.entryFeeUSDC * Double(lobby.participantCount)
+        lobby.entryFeeETH * Double(lobby.participantCount)
     }
 
     private var maxPool: Double {
-        lobby.entryFeeUSDC * Double(lobby.maxParticipants)
+        lobby.entryFeeETH * Double(lobby.maxParticipants)
     }
 
     var body: some View {
@@ -176,7 +176,7 @@ struct PrizePoolCard: View {
             HStack {
                 Text("Current Pool")
                 Spacer()
-                Text("$\(Int(totalPool)) USDC")
+                Text(String(format: "%.4f ETH", totalPool))
                     .fontWeight(.semibold)
             }
 
@@ -184,7 +184,7 @@ struct PrizePoolCard: View {
             HStack {
                 Text("Max Pool (if full)")
                 Spacer()
-                Text("$\(Int(maxPool)) USDC")
+                Text(String(format: "%.4f ETH", maxPool))
                     .foregroundColor(.secondary)
             }
 
@@ -197,7 +197,7 @@ struct PrizePoolCard: View {
                     Text(positionText(index))
                         .foregroundColor(positionColor(index))
                     Spacer()
-                    Text("$\(Int(payout)) USDC")
+                    Text(String(format: "%.4f ETH", payout))
                         .fontWeight(.medium)
                 }
             }
@@ -326,7 +326,7 @@ struct ActionButtonsSection: View {
                             .frame(maxWidth: .infinity)
                             .frame(height: 54)
                     } else {
-                        Text("Join Lobby - $\(Int(lobby.entryFeeUSDC)) USDC")
+                        Text("Join Lobby - \(lobby.formattedEntryFee)")
                             .font(.headline)
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)

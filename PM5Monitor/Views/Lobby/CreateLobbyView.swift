@@ -5,8 +5,8 @@ struct CreateLobbyView: View {
     @ObservedObject var authService: AuthService
     @Binding var isPresented: Bool
 
-    @State private var selectedDistance: RaceDistance = .fiveK
-    @State private var selectedEntryFee: EntryFeePreset = .five
+    @State private var selectedDistance: RaceDistance = .twoK
+    @State private var selectedEntryFee: EntryFeePreset = .eth01
     @State private var selectedPayoutMode: PayoutMode = .winnerTakesAll
     @State private var maxParticipants: Int = 6
     @State private var isCreating = false
@@ -17,23 +17,42 @@ struct CreateLobbyView: View {
         NavigationStack {
             Form {
                 // Distance section
-                Section("Race Distance") {
-                    Picker("Distance", selection: $selectedDistance) {
+                Section {
+                    LazyVGrid(columns: [
+                        GridItem(.flexible()),
+                        GridItem(.flexible()),
+                        GridItem(.flexible())
+                    ], spacing: 12) {
                         ForEach(RaceDistance.allCases) { distance in
-                            Text(distance.fullName).tag(distance)
+                            DistanceButton(
+                                distance: distance,
+                                isSelected: selectedDistance == distance
+                            ) {
+                                selectedDistance = distance
+                            }
                         }
                     }
-                    .pickerStyle(.segmented)
+                    .padding(.vertical, 8)
+                } header: {
+                    Text("Race Distance")
+                } footer: {
+                    Text("Estimated time: \(selectedDistance.estimatedDuration)")
                 }
 
                 // Entry fee section
-                Section("Entry Fee") {
-                    ForEach([EntryFeePreset.one, .five, .ten, .twentyFive, .fifty], id: \.usdcAmount) { fee in
+                Section {
+                    ForEach(EntryFeePreset.allCases) { fee in
                         HStack {
-                            Text(fee.displayName)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(fee.displayName)
+                                    .font(.subheadline.weight(.medium))
+                                Text(fee.approximateUSD)
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
                             Spacer()
-                            if selectedEntryFee.usdcAmount == fee.usdcAmount {
-                                Image(systemName: "checkmark")
+                            if selectedEntryFee.ethAmount == fee.ethAmount {
+                                Image(systemName: "checkmark.circle.fill")
                                     .foregroundColor(.cyan)
                             }
                         }
@@ -42,6 +61,10 @@ struct CreateLobbyView: View {
                             selectedEntryFee = fee
                         }
                     }
+                } header: {
+                    Text("Entry Fee (ETH)")
+                } footer: {
+                    Text("Entry fee is paid in Ethereum. USD values are approximate.")
                 }
 
                 // Payout mode section
@@ -57,7 +80,7 @@ struct CreateLobbyView: View {
                             }
                             Spacer()
                             if selectedPayoutMode == mode {
-                                Image(systemName: "checkmark")
+                                Image(systemName: "checkmark.circle.fill")
                                     .foregroundColor(.cyan)
                             }
                         }
@@ -81,11 +104,11 @@ struct CreateLobbyView: View {
                 Section("Summary") {
                     SummaryRow(title: "Distance", value: selectedDistance.fullName)
                     SummaryRow(title: "Entry Fee", value: selectedEntryFee.displayName)
-                    SummaryRow(title: "Max Pool", value: "$\(Int(selectedEntryFee.usdcAmount) * maxParticipants) USDC")
-                    SummaryRow(title: "Max Prize", value: calculateMaxPrize())
+                    SummaryRow(title: "Max Pool", value: String(format: "%.3f ETH", selectedEntryFee.ethAmount * Double(maxParticipants)))
+                    SummaryRow(title: "Max Prize (1st)", value: calculateMaxPrize())
                 }
             }
-            .navigationTitle("Create Lobby")
+            .navigationTitle("Create Race")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -116,15 +139,15 @@ struct CreateLobbyView: View {
     }
 
     private func calculateMaxPrize() -> String {
-        let totalPool = selectedEntryFee.usdcAmount * Double(maxParticipants)
+        let totalPool = selectedEntryFee.ethAmount * Double(maxParticipants)
         let prizePool = PlatformFee.prizePool(from: totalPool)
 
         switch selectedPayoutMode {
         case .winnerTakesAll:
-            return String(format: "$%.0f USDC", prizePool)
+            return String(format: "%.4f ETH", prizePool)
         case .topThree:
             let firstPlace = prizePool * 0.60
-            return String(format: "$%.0f USDC (1st)", firstPlace)
+            return String(format: "%.4f ETH", firstPlace)
         }
     }
 
@@ -156,6 +179,31 @@ struct CreateLobbyView: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Distance Button
+
+struct DistanceButton: View {
+    let distance: RaceDistance
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 4) {
+                Text(distance.displayName)
+                    .font(.headline)
+                Text(distance.estimatedDuration)
+                    .font(.caption2)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(isSelected ? Color.cyan : Color(.tertiarySystemGroupedBackground))
+            .foregroundColor(isSelected ? .black : .primary)
+            .cornerRadius(10)
+        }
+        .buttonStyle(.plain)
     }
 }
 

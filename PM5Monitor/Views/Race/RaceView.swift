@@ -3,45 +3,48 @@ import SwiftUI
 struct RaceView: View {
     @ObservedObject var raceService: RaceService
     @ObservedObject var bleManager: BLEManager
-    @ObservedObject var cameraManager: CameraManager
 
     @State private var previousMetrics: RowingMetrics?
 
     var body: some View {
         ZStack {
-            // Camera background
-            if cameraManager.isRunning {
-                CameraPreviewView(session: cameraManager.session)
-                    .ignoresSafeArea()
-            } else {
-                Color.black.ignoresSafeArea()
-            }
+            // Dark background
+            Color.black.ignoresSafeArea()
 
-            // Race content
             VStack(spacing: 0) {
+                // Race header with distance info
+                RaceHeaderView(
+                    targetDistance: raceService.currentRace?.targetDistance ?? 2000,
+                    currentDistance: bleManager.currentMetrics.distance
+                )
+
                 // Race track visualization
                 RaceTrackView(
                     participants: raceService.participants,
                     myProgress: raceService.myProgress,
-                    targetDistance: Double(raceService.currentRace?.targetDistance ?? 5000)
+                    targetDistance: Double(raceService.currentRace?.targetDistance ?? 2000)
                 )
-                .frame(height: 200)
-                .background(.ultraThinMaterial)
+                .frame(height: 180)
+                .padding(.vertical, 8)
 
-                Spacer()
-
-                // Countdown overlay
-                if case .countdown(let seconds) = raceService.raceState {
-                    CountdownView(seconds: seconds)
-                }
+                // Main metrics display
+                MainRaceMetrics(
+                    metrics: bleManager.currentMetrics,
+                    targetDistance: Double(raceService.currentRace?.targetDistance ?? 2000)
+                )
 
                 Spacer()
 
                 // Bottom metrics panel
-                RaceMetricsPanel(
+                BottomMetricsPanel(
                     metrics: bleManager.currentMetrics,
                     progress: raceService.myProgress
                 )
+            }
+
+            // Countdown overlay
+            if case .countdown(let seconds) = raceService.raceState {
+                CountdownOverlay(seconds: seconds)
             }
 
             // Finish overlay
@@ -52,15 +55,11 @@ struct RaceView: View {
         .onChange(of: bleManager.currentMetrics) { newMetrics in
             sendUpdate(metrics: newMetrics)
         }
-        .onAppear {
-            cameraManager.startSession()
-        }
     }
 
     private func sendUpdate(metrics: RowingMetrics) {
         guard raceService.raceState.isRacing else { return }
 
-        // Validate metrics
         guard raceService.validateMetrics(metrics, previous: previousMetrics) else {
             return
         }
@@ -69,10 +68,43 @@ struct RaceView: View {
 
         Task {
             try? await raceService.sendUpdate(
-                participantId: "current-user", // Would come from auth
+                participantId: "current-user",
                 metrics: metrics
             )
         }
+    }
+}
+
+// MARK: - Race Header View
+
+struct RaceHeaderView: View {
+    let targetDistance: Int
+    let currentDistance: Double
+
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("RACE")
+                    .font(.caption)
+                    .foregroundColor(.gray)
+                Text(RaceDistance.fromMeters(targetDistance).displayName)
+                    .font(.title2.bold())
+                    .foregroundColor(.white)
+            }
+
+            Spacer()
+
+            VStack(alignment: .trailing, spacing: 4) {
+                Text("REMAINING")
+                    .font(.caption)
+                    .foregroundColor(.gray)
+                Text("\(max(0, targetDistance - Int(currentDistance)))m")
+                    .font(.title2.bold())
+                    .foregroundColor(.cyan)
+            }
+        }
+        .padding()
+        .background(Color(.systemGray6).opacity(0.3))
     }
 }
 
@@ -86,212 +118,233 @@ struct RaceTrackView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                // Track background
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.blue.opacity(0.2))
-                    .frame(height: 40)
-                    .padding(.horizontal, 20)
-                    .offset(y: geometry.size.height / 2 - 20)
+                // Track lanes
+                ForEach(0..<max(1, sortedParticipants.count + 1), id: \.self) { index in
+                    let yPosition = laneYPosition(for: index, in: geometry.size.height)
+
+                    // Lane line
+                    Rectangle()
+                        .fill(Color.blue.opacity(0.3))
+                        .frame(height: 2)
+                        .position(x: geometry.size.width / 2, y: yPosition)
+                }
+
+                // Start line
+                Rectangle()
+                    .fill(Color.white.opacity(0.5))
+                    .frame(width: 2, height: geometry.size.height)
+                    .position(x: 30, y: geometry.size.height / 2)
 
                 // Finish line
-                Rectangle()
-                    .fill(Color.white)
-                    .frame(width: 3, height: 60)
-                    .position(x: geometry.size.width - 30, y: geometry.size.height / 2)
+                VStack(spacing: 0) {
+                    ForEach(0..<10, id: \.self) { i in
+                        Rectangle()
+                            .fill(i % 2 == 0 ? Color.white : Color.black)
+                            .frame(width: 8, height: 15)
+                    }
+                }
+                .position(x: geometry.size.width - 20, y: geometry.size.height / 2)
 
-                Text("FINISH")
-                    .font(.caption2)
-                    .foregroundColor(.white)
-                    .position(x: geometry.size.width - 30, y: geometry.size.height / 2 - 40)
-
-                // Participants
-                ForEach(Array(sortedParticipants.enumerated()), id: \.element.id) { index, participant in
-                    ParticipantBoat(
-                        participant: participant,
-                        isMe: participant.id == "current-user",
-                        position: calculatePosition(
-                            progress: participant.progress(toward: targetDistance),
-                            width: geometry.size.width
-                        ),
-                        verticalOffset: CGFloat(index) * 25
+                // My boat
+                if let progress = myProgress {
+                    BoatView(
+                        name: "YOU",
+                        position: calculateXPosition(progress: progress.percentComplete, width: geometry.size.width),
+                        yPosition: laneYPosition(for: 0, in: geometry.size.height),
+                        color: .cyan,
+                        isMe: true
                     )
                 }
 
-                // My boat (if not in participants list)
-                if let progress = myProgress {
-                    MyBoat(
-                        progress: progress,
-                        position: calculatePosition(
-                            progress: progress.percentComplete,
+                // Other participants
+                ForEach(Array(sortedParticipants.enumerated()), id: \.element.id) { index, participant in
+                    BoatView(
+                        name: String(participant.displayName.prefix(6)),
+                        position: calculateXPosition(
+                            progress: participant.progress(toward: targetDistance),
                             width: geometry.size.width
-                        )
+                        ),
+                        yPosition: laneYPosition(for: index + 1, in: geometry.size.height),
+                        color: .white,
+                        isMe: false
                     )
                 }
             }
         }
+        .background(Color.black)
     }
 
     private var sortedParticipants: [RaceParticipant] {
-        participants.sorted { $0.distance > $1.distance }
+        participants.filter { $0.id != "current-user" }.sorted { $0.distance > $1.distance }
     }
 
-    private func calculatePosition(progress: Double, width: CGFloat) -> CGFloat {
+    private func laneYPosition(for index: Int, in height: CGFloat) -> CGFloat {
+        let laneCount = max(2, sortedParticipants.count + 1)
+        let laneHeight = height / CGFloat(laneCount)
+        return (CGFloat(index) + 0.5) * laneHeight
+    }
+
+    private func calculateXPosition(progress: Double, width: CGFloat) -> CGFloat {
         let trackStart: CGFloat = 40
-        let trackEnd = width - 40
+        let trackEnd = width - 30
         let trackLength = trackEnd - trackStart
-        return trackStart + (trackLength * CGFloat(progress))
+        return trackStart + (trackLength * CGFloat(min(1.0, progress)))
     }
 }
 
-struct ParticipantBoat: View {
-    let participant: RaceParticipant
+struct BoatView: View {
+    let name: String
+    let position: CGFloat
+    let yPosition: CGFloat
+    let color: Color
     let isMe: Bool
-    let position: CGFloat
-    let verticalOffset: CGFloat
 
     var body: some View {
-        VStack(spacing: 2) {
-            Text(participant.displayName.prefix(8))
-                .font(.caption2)
-                .foregroundColor(isMe ? .cyan : .white)
-
+        HStack(spacing: 4) {
             Image(systemName: "figure.rowing")
-                .font(.title2)
-                .foregroundColor(isMe ? .cyan : .white)
-                .scaleEffect(x: -1, y: 1)
-        }
-        .position(x: position, y: 60 + verticalOffset)
-    }
-}
-
-struct MyBoat: View {
-    let progress: RaceProgress
-    let position: CGFloat
-
-    var body: some View {
-        VStack(spacing: 2) {
-            Text("YOU")
-                .font(.caption2.bold())
-                .foregroundColor(.cyan)
-
-            Image(systemName: "figure.rowing")
-                .font(.title)
-                .foregroundColor(.cyan)
+                .font(isMe ? .title2 : .body)
+                .foregroundColor(color)
                 .scaleEffect(x: -1, y: 1)
 
-            Text("\(Int(progress.distance))m")
-                .font(.caption2)
-                .foregroundColor(.cyan)
+            Text(name)
+                .font(isMe ? .caption.bold() : .caption2)
+                .foregroundColor(color)
         }
-        .position(x: position, y: 100)
+        .position(x: position, y: yPosition)
     }
 }
 
-// MARK: - Countdown View
+// MARK: - Main Race Metrics
 
-struct CountdownView: View {
-    let seconds: Int
+struct MainRaceMetrics: View {
+    let metrics: RowingMetrics
+    let targetDistance: Double
 
     var body: some View {
-        ZStack {
-            Circle()
-                .fill(Color.black.opacity(0.7))
-                .frame(width: 150, height: 150)
+        VStack(spacing: 24) {
+            // Large time display
+            VStack(spacing: 4) {
+                Text("TIME")
+                    .font(.caption)
+                    .foregroundColor(.gray)
+                Text(metrics.formattedElapsedTime)
+                    .font(.system(size: 64, weight: .bold, design: .monospaced))
+                    .foregroundColor(.white)
+            }
 
-            Text("\(seconds)")
-                .font(.system(size: 72, weight: .bold))
-                .foregroundColor(.cyan)
+            // Progress bar
+            VStack(spacing: 8) {
+                ProgressView(value: min(1.0, metrics.distance / targetDistance))
+                    .tint(.cyan)
+                    .scaleEffect(y: 2)
+
+                HStack {
+                    Text("\(Int(metrics.distance))m")
+                        .foregroundColor(.cyan)
+                    Spacer()
+                    Text("\(Int(targetDistance))m")
+                        .foregroundColor(.gray)
+                }
+                .font(.caption)
+            }
+            .padding(.horizontal, 32)
+
+            // Distance display
+            HStack(spacing: 40) {
+                VStack(spacing: 4) {
+                    Text("DISTANCE")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                    Text("\(Int(metrics.distance))")
+                        .font(.system(size: 32, weight: .bold, design: .monospaced))
+                        .foregroundColor(.white)
+                    Text("meters")
+                        .font(.caption2)
+                        .foregroundColor(.gray)
+                }
+
+                VStack(spacing: 4) {
+                    Text("PACE")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                    Text(metrics.formattedPace)
+                        .font(.system(size: 32, weight: .bold, design: .monospaced))
+                        .foregroundColor(.white)
+                    Text("/500m")
+                        .font(.caption2)
+                        .foregroundColor(.gray)
+                }
+            }
         }
+        .padding()
     }
 }
 
-// MARK: - Race Metrics Panel
+// MARK: - Bottom Metrics Panel
 
-struct RaceMetricsPanel: View {
+struct BottomMetricsPanel: View {
     let metrics: RowingMetrics
     let progress: RaceProgress?
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Progress bar
-            if let progress = progress {
-                ProgressView(value: progress.percentComplete)
-                    .tint(.cyan)
-                    .padding(.horizontal)
-                    .padding(.top, 8)
-
-                HStack {
-                    Text("\(Int(progress.distance))m")
-                    Spacer()
-                    Text("\(Int(progress.targetDistance))m")
-                }
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .padding(.horizontal)
-            }
-
-            // Metrics grid
-            HStack(spacing: 0) {
-                RaceMetricBox(
-                    title: "PACE",
-                    value: metrics.formattedPace,
-                    unit: "/500m"
-                )
-
-                Divider()
-                    .frame(height: 60)
-
-                RaceMetricBox(
-                    title: "WATTS",
-                    value: "\(metrics.watts)",
-                    unit: "W"
-                )
-
-                Divider()
-                    .frame(height: 60)
-
-                RaceMetricBox(
-                    title: "S/M",
-                    value: "\(metrics.strokeRate)",
-                    unit: ""
-                )
-
-                Divider()
-                    .frame(height: 60)
-
-                RaceMetricBox(
-                    title: "POS",
-                    value: progress.map { "\($0.positionInRace)" } ?? "-",
-                    unit: progress.map { "/\($0.totalParticipants)" } ?? ""
-                )
-            }
-            .padding(.vertical, 16)
+        HStack(spacing: 0) {
+            MetricBox(title: "WATTS", value: "\(metrics.watts)")
+            Divider().frame(height: 50).background(Color.gray)
+            MetricBox(title: "S/M", value: "\(metrics.strokeRate)")
+            Divider().frame(height: 50).background(Color.gray)
+            MetricBox(title: "STROKES", value: "\(metrics.strokeCount)")
+            Divider().frame(height: 50).background(Color.gray)
+            MetricBox(
+                title: "POSITION",
+                value: progress.map { "\($0.positionInRace)/\($0.totalParticipants)" } ?? "-"
+            )
         }
-        .background(.ultraThinMaterial)
+        .padding(.vertical, 16)
+        .background(Color(.systemGray6).opacity(0.5))
     }
 }
 
-struct RaceMetricBox: View {
+struct MetricBox: View {
     let title: String
     let value: String
-    let unit: String
 
     var body: some View {
         VStack(spacing: 4) {
             Text(title)
                 .font(.caption2)
-                .foregroundColor(.secondary)
-
-            HStack(alignment: .lastTextBaseline, spacing: 2) {
-                Text(value)
-                    .font(.system(size: 24, weight: .bold, design: .monospaced))
-
-                Text(unit)
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-            }
+                .foregroundColor(.gray)
+            Text(value)
+                .font(.system(size: 20, weight: .bold, design: .monospaced))
+                .foregroundColor(.white)
         }
         .frame(maxWidth: .infinity)
+    }
+}
+
+// MARK: - Countdown Overlay
+
+struct CountdownOverlay: View {
+    let seconds: Int
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.8)
+                .ignoresSafeArea()
+
+            VStack(spacing: 20) {
+                Text("GET READY")
+                    .font(.title2)
+                    .foregroundColor(.gray)
+
+                Text("\(seconds)")
+                    .font(.system(size: 120, weight: .bold))
+                    .foregroundColor(.cyan)
+
+                Text(seconds == 1 ? "ROW!" : "")
+                    .font(.largeTitle.bold())
+                    .foregroundColor(.green)
+            }
+        }
     }
 }
 
@@ -302,10 +355,15 @@ struct RaceFinishedOverlay: View {
 
     var body: some View {
         ZStack {
-            Color.black.opacity(0.8)
+            Color.black.opacity(0.9)
                 .ignoresSafeArea()
 
             VStack(spacing: 24) {
+                // Medal/trophy icon
+                Image(systemName: medalIcon)
+                    .font(.system(size: 80))
+                    .foregroundColor(positionColor)
+
                 // Position
                 Text(positionText)
                     .font(.system(size: 72, weight: .bold))
@@ -315,17 +373,17 @@ struct RaceFinishedOverlay: View {
                     .font(.title)
                     .foregroundColor(.white)
 
-                // Medal
-                Image(systemName: medalIcon)
-                    .font(.system(size: 80))
-                    .foregroundColor(positionColor)
+                if position <= 3 {
+                    Text("Prize pool distributed!")
+                        .font(.subheadline)
+                        .foregroundColor(.green)
+                }
 
                 Spacer()
                     .frame(height: 40)
 
-                // Continue button
                 Button {
-                    // Navigate back
+                    // Navigate back to results
                 } label: {
                     Text("View Results")
                         .font(.headline)
@@ -359,7 +417,7 @@ struct RaceFinishedOverlay: View {
     private var positionColor: Color {
         switch position {
         case 1: return .yellow
-        case 2: return .gray
+        case 2: return Color(.systemGray)
         case 3: return .orange
         default: return .white
         }
@@ -367,7 +425,7 @@ struct RaceFinishedOverlay: View {
 
     private var medalIcon: String {
         switch position {
-        case 1: return "medal.fill"
+        case 1: return "trophy.fill"
         case 2: return "medal.fill"
         case 3: return "medal.fill"
         default: return "checkmark.circle.fill"
@@ -378,7 +436,6 @@ struct RaceFinishedOverlay: View {
 #Preview {
     RaceView(
         raceService: RaceService(),
-        bleManager: BLEManager(),
-        cameraManager: CameraManager()
+        bleManager: BLEManager()
     )
 }

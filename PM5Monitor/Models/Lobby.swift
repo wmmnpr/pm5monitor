@@ -35,7 +35,7 @@ enum LobbyStatus: String, Codable {
 struct Lobby: Codable, Identifiable {
     let id: String
     let creatorId: String
-    var raceDistance: Int // meters (5000, 10000)
+    var raceDistance: Int // meters (350, 500, 1000, 2000, 5000, 10000)
     var entryFee: String // wei (stored as string for precision)
     var payoutMode: PayoutMode
     var status: LobbyStatus
@@ -81,10 +81,20 @@ struct Lobby: Codable, Identifiable {
         RaceDistance(rawValue: raceDistance)
     }
 
-    /// Entry fee in USDC (6 decimals)
-    var entryFeeUSDC: Double {
+    /// Entry fee in ETH (from wei)
+    var entryFeeETH: Double {
         guard let wei = Double(entryFee) else { return 0 }
-        return wei / 1_000_000 // USDC has 6 decimals
+        return wei / 1_000_000_000_000_000_000 // ETH has 18 decimals
+    }
+
+    /// Formatted entry fee string
+    var formattedEntryFee: String {
+        let eth = entryFeeETH
+        if eth < 0.01 {
+            return String(format: "%.4f ETH", eth)
+        } else {
+            return String(format: "%.3f ETH", eth)
+        }
     }
 
     /// Whether the lobby can start
@@ -95,6 +105,16 @@ struct Lobby: Codable, Identifiable {
     /// Whether the lobby is full
     var isFull: Bool {
         participantCount >= maxParticipants
+    }
+
+    /// Total prize pool in ETH
+    var totalPoolETH: Double {
+        entryFeeETH * Double(participantCount)
+    }
+
+    /// Prize pool after platform fee
+    var prizePoolETH: Double {
+        PlatformFee.prizePool(from: totalPoolETH)
     }
 }
 
@@ -131,34 +151,56 @@ enum ParticipantStatus: String, Codable {
     case disconnected = "disconnected"
 }
 
-// MARK: - Entry Fee Presets
+// MARK: - Entry Fee Presets (ETH)
 
-enum EntryFeePreset: CaseIterable {
-    case one
-    case five
-    case ten
-    case twentyFive
-    case fifty
-    case hundred
+enum EntryFeePreset: CaseIterable, Identifiable {
+    case eth001  // 0.001 ETH
+    case eth005  // 0.005 ETH
+    case eth01   // 0.01 ETH
+    case eth025  // 0.025 ETH
+    case eth05   // 0.05 ETH
+    case eth1    // 0.1 ETH
 
-    var usdcAmount: Double {
+    var id: String { displayName }
+
+    /// Entry fee in ETH
+    var ethAmount: Double {
         switch self {
-        case .one: return 1
-        case .five: return 5
-        case .ten: return 10
-        case .twentyFive: return 25
-        case .fifty: return 50
-        case .hundred: return 100
+        case .eth001: return 0.001
+        case .eth005: return 0.005
+        case .eth01: return 0.01
+        case .eth025: return 0.025
+        case .eth05: return 0.05
+        case .eth1: return 0.1
         }
     }
 
-    /// Entry fee in wei (USDC has 6 decimals)
+    /// Entry fee in wei (ETH has 18 decimals)
     var weiAmount: String {
-        String(Int(usdcAmount * 1_000_000))
+        let wei = ethAmount * 1_000_000_000_000_000_000
+        return String(format: "%.0f", wei)
     }
 
     var displayName: String {
-        "$\(Int(usdcAmount)) USDC"
+        switch self {
+        case .eth001: return "0.001 ETH"
+        case .eth005: return "0.005 ETH"
+        case .eth01: return "0.01 ETH"
+        case .eth025: return "0.025 ETH"
+        case .eth05: return "0.05 ETH"
+        case .eth1: return "0.1 ETH"
+        }
+    }
+
+    /// Approximate USD value (for display only, actual price varies)
+    var approximateUSD: String {
+        // Assuming ~$2000/ETH for display purposes
+        let usd = ethAmount * 2000
+        if usd < 10 {
+            return String(format: "~$%.2f", usd)
+        } else {
+            return String(format: "~$%.0f", usd)
+        }
     }
 }
 

@@ -1,17 +1,18 @@
 import SwiftUI
-import AuthenticationServices
 
 struct LoginView: View {
     @ObservedObject var authService: AuthService
+    @State private var showWebView = false
     @State private var showError = false
+    @State private var errorMessage = ""
 
     var body: some View {
         ZStack {
             // Background gradient
             LinearGradient(
-                colors: [Color.black, Color.blue.opacity(0.3)],
-                startPoint: .top,
-                endPoint: .bottom
+                colors: [Color.black, Color.blue.opacity(0.3), Color.black],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
             )
             .ignoresSafeArea()
 
@@ -25,7 +26,7 @@ struct LoginView: View {
                         .foregroundColor(.cyan)
 
                     Text("PM5 Racing")
-                        .font(.system(size: 36, weight: .bold))
+                        .font(.largeTitle.bold())
                         .foregroundColor(.white)
 
                     Text("Compete. Win. Earn.")
@@ -35,99 +36,150 @@ struct LoginView: View {
 
                 Spacer()
 
-                // Features
-                VStack(alignment: .leading, spacing: 16) {
-                    FeatureRow(icon: "person.3.fill", text: "Race against rowers worldwide")
-                    FeatureRow(icon: "bitcoinsign.circle.fill", text: "Win crypto prizes")
-                    FeatureRow(icon: "chart.line.uptrend.xyaxis", text: "Track your performance")
+                // Login content
+                VStack(spacing: 24) {
+                    // Concept2 info
+                    VStack(spacing: 8) {
+                        Image(systemName: "person.badge.key.fill")
+                            .font(.title)
+                            .foregroundColor(.cyan)
+
+                        Text("Sign in with your Concept2 Logbook account")
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+                            .multilineTextAlignment(.center)
+                    }
+
+                    // Sign in with Concept2 button
+                    Button {
+                        showWebView = true
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "link.circle.fill")
+                                .font(.title2)
+
+                            Text("Sign in with Concept2")
+                                .font(.headline)
+                        }
+                        .foregroundColor(.black)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 56)
+                        .background(Color.white)
+                        .cornerRadius(12)
+                    }
+                    .padding(.horizontal, 32)
+
+                    // Create account link
+                    VStack(spacing: 8) {
+                        Text("Don't have an account?")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+
+                        Link("Create a free Concept2 Logbook account", destination: URL(string: "https://log.concept2.com/register")!)
+                            .font(.caption)
+                            .foregroundColor(.cyan)
+                    }
                 }
-                .padding(.horizontal, 32)
 
                 Spacer()
 
-                // Sign in buttons
-                VStack(spacing: 16) {
-                    // Sign in with Apple
-                    SignInWithAppleButton(.signIn) { request in
-                        request.requestedScopes = [.email, .fullName]
-                    } onCompletion: { result in
-                        handleAppleSignIn(result)
-                    }
-                    .signInWithAppleButtonStyle(.white)
-                    .frame(height: 54)
-                    .cornerRadius(12)
+                // Footer
+                VStack(spacing: 8) {
+                    Text("By signing in, you agree to our")
+                        .font(.caption2)
+                        .foregroundColor(.gray)
 
-                    // Guest sign in (for testing)
-                    Button {
-                        Task {
-                            do {
-                                try await authService.signInAnonymously()
-                            } catch {
-                                showError = true
-                            }
-                        }
-                    } label: {
-                        HStack {
-                            Image(systemName: "person.crop.circle.badge.questionmark")
-                            Text("Continue as Guest")
-                        }
-                        .font(.headline)
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 54)
-                        .background(Color.white.opacity(0.2))
-                        .cornerRadius(12)
+                    HStack(spacing: 4) {
+                        Link("Terms of Service", destination: URL(string: "https://pm5racing.app/terms")!)
+                        Text("and")
+                            .foregroundColor(.gray)
+                        Link("Privacy Policy", destination: URL(string: "https://pm5racing.app/privacy")!)
                     }
+                    .font(.caption2)
+                    .foregroundColor(.cyan)
                 }
-                .padding(.horizontal, 24)
+                .padding(.bottom, 32)
+            }
 
-                // Terms
-                Text("By continuing, you agree to our Terms of Service and Privacy Policy")
-                    .font(.caption)
-                    .foregroundColor(.gray)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 32)
-                    .padding(.bottom, 32)
+            // Loading overlay
+            if authService.isLoading {
+                Color.black.opacity(0.7)
+                    .ignoresSafeArea()
+
+                VStack(spacing: 16) {
+                    ProgressView()
+                        .scaleEffect(1.5)
+                        .tint(.white)
+                    Text("Signing in...")
+                        .foregroundColor(.white)
+                }
             }
         }
-        .alert("Sign In Failed", isPresented: $showError) {
+        .sheet(isPresented: $showWebView) {
+            Concept2WebView(authService: authService, isPresented: $showWebView)
+        }
+        .alert("Error", isPresented: $showError) {
             Button("OK", role: .cancel) {}
         } message: {
-            Text(authService.error?.localizedDescription ?? "Please try again")
+            Text(errorMessage)
         }
-    }
-
-    private func handleAppleSignIn(_ result: Result<ASAuthorization, Error>) {
-        switch result {
-        case .success(let authorization):
-            Task {
-                do {
-                    try await authService.signInWithApple()
-                } catch {
-                    showError = true
-                }
-            }
-        case .failure(let error):
-            print("Apple Sign In failed: \(error)")
+        .onReceive(authService.$error.compactMap { $0 }) { error in
+            errorMessage = error.localizedDescription
             showError = true
         }
     }
 }
 
-struct FeatureRow: View {
-    let icon: String
-    let text: String
+// MARK: - Concept2 Web View for OAuth
 
-    var body: some View {
-        HStack(spacing: 16) {
-            Image(systemName: icon)
-                .font(.title2)
-                .foregroundColor(.cyan)
-                .frame(width: 32)
+import WebKit
 
-            Text(text)
-                .font(.body)
-                .foregroundColor(.white)
+struct Concept2WebView: UIViewRepresentable {
+    @ObservedObject var authService: AuthService
+    @Binding var isPresented: Bool
+
+    func makeUIView(context: Context) -> WKWebView {
+        let webView = WKWebView()
+        webView.navigationDelegate = context.coordinator
+
+        if let url = authService.authorizationURL {
+            webView.load(URLRequest(url: url))
+        }
+
+        return webView
+    }
+
+    func updateUIView(_ webView: WKWebView, context: Context) {}
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    class Coordinator: NSObject, WKNavigationDelegate {
+        var parent: Concept2WebView
+
+        init(_ parent: Concept2WebView) {
+            self.parent = parent
+        }
+
+        func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+
+            if let url = navigationAction.request.url,
+               url.scheme == "pm5monitor" && url.host == "oauth" {
+                // Handle OAuth callback
+                Task { @MainActor in
+                    do {
+                        try await self.parent.authService.handleOAuthCallback(url: url)
+                        self.parent.isPresented = false
+                    } catch {
+                        // Error is handled via authService.error
+                    }
+                }
+                decisionHandler(.cancel)
+                return
+            }
+
+            decisionHandler(.allow)
         }
     }
 }

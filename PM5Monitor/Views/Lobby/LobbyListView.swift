@@ -83,19 +83,19 @@ struct QuickMatchSection: View {
             // Entry fee options
             VStack(spacing: 12) {
                 QuickMatchRow(
-                    entryFee: .one,
+                    entryFee: .eth005,
                     distance: selectedDistance,
                     lobbyService: lobbyService,
                     authService: authService
                 )
                 QuickMatchRow(
-                    entryFee: .five,
+                    entryFee: .eth01,
                     distance: selectedDistance,
                     lobbyService: lobbyService,
                     authService: authService
                 )
                 QuickMatchRow(
-                    entryFee: .ten,
+                    entryFee: .eth025,
                     distance: selectedDistance,
                     lobbyService: lobbyService,
                     authService: authService
@@ -105,24 +105,6 @@ struct QuickMatchSection: View {
         .padding()
         .background(Color(.secondarySystemGroupedBackground))
         .cornerRadius(16)
-    }
-}
-
-struct DistanceButton: View {
-    let distance: RaceDistance
-    let isSelected: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Text(distance.displayName)
-                .font(.subheadline.weight(.semibold))
-                .foregroundColor(isSelected ? .white : .primary)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
-                .background(isSelected ? Color.cyan : Color(.tertiarySystemGroupedBackground))
-                .cornerRadius(10)
-        }
     }
 }
 
@@ -262,7 +244,7 @@ struct LobbyRow: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
-                    Text("$\(Int(lobby.entryFeeUSDC)) USDC")
+                    Text(lobby.formattedEntryFee)
                         .font(.subheadline.weight(.semibold))
 
                     Text("•")
