@@ -11,6 +11,13 @@
 		A10003 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10004 /* ContentView.swift */; };
 		A10005 /* BLEManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10006 /* BLEManager.swift */; };
 		A10009 /* CameraManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000A /* CameraManager.swift */; };
+		A1000B /* RowingMetrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000C /* RowingMetrics.swift */; };
+		A1000D /* UserProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000E /* UserProfile.swift */; };
+		A1000F /* Lobby.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10010 /* Lobby.swift */; };
+		A10011 /* Race.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10012 /* Race.swift */; };
+		A10013 /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10014 /* AuthService.swift */; };
+		A10015 /* LobbyService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10016 /* LobbyService.swift */; };
+		A10017 /* RaceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10018 /* RaceService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -20,6 +27,13 @@
 		A10007 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A10008 /* PM5Monitor.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PM5Monitor.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A1000A /* CameraManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraManager.swift; sourceTree = "<group>"; };
+		A1000C /* RowingMetrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RowingMetrics.swift; sourceTree = "<group>"; };
+		A1000E /* UserProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserProfile.swift; sourceTree = "<group>"; };
+		A10010 /* Lobby.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Lobby.swift; sourceTree = "<group>"; };
+		A10012 /* Race.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Race.swift; sourceTree = "<group>"; };
+		A10014 /* AuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthService.swift; sourceTree = "<group>"; };
+		A10016 /* LobbyService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LobbyService.swift; sourceTree = "<group>"; };
+		A10018 /* RaceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RaceService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -44,6 +58,8 @@
 		A10031 /* PM5Monitor */ = {
 			isa = PBXGroup;
 			children = (
+				A10033 /* Models */,
+				A10034 /* Services */,
 				A10002 /* PM5MonitorApp.swift */,
 				A10004 /* ContentView.swift */,
 				A10006 /* BLEManager.swift */,
@@ -59,6 +75,27 @@
 				A10008 /* PM5Monitor.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		A10033 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				A1000C /* RowingMetrics.swift */,
+				A1000E /* UserProfile.swift */,
+				A10010 /* Lobby.swift */,
+				A10012 /* Race.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		A10034 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				A10014 /* AuthService.swift */,
+				A10016 /* LobbyService.swift */,
+				A10018 /* RaceService.swift */,
+			);
+			path = Services;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -128,6 +165,13 @@
 				A10003 /* ContentView.swift in Sources */,
 				A10005 /* BLEManager.swift in Sources */,
 				A10009 /* CameraManager.swift in Sources */,
+				A1000B /* RowingMetrics.swift in Sources */,
+				A1000D /* UserProfile.swift in Sources */,
+				A1000F /* Lobby.swift in Sources */,
+				A10011 /* Race.swift in Sources */,
+				A10013 /* AuthService.swift in Sources */,
+				A10015 /* LobbyService.swift in Sources */,
+				A10017 /* RaceService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
