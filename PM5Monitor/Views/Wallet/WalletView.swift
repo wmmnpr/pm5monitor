@@ -146,12 +146,25 @@ struct ConnectedWalletCard: View {
 
 struct BalanceCard: View {
     @ObservedObject var walletService: WalletService
+    @State private var isRefreshing = false
 
     var body: some View {
         VStack(spacing: 16) {
-            Text("Balance")
-                .font(.headline)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            HStack {
+                Text("Balance")
+                    .font(.headline)
+                Spacer()
+                Button {
+                    refreshBalance()
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.caption)
+                        .foregroundColor(.cyan)
+                        .rotationEffect(.degrees(isRefreshing ? 360 : 0))
+                        .animation(isRefreshing ? .linear(duration: 1).repeatForever(autoreverses: false) : .default, value: isRefreshing)
+                }
+                .disabled(isRefreshing)
+            }
 
             HStack(spacing: 24) {
                 // ETH Balance
@@ -188,6 +201,16 @@ struct BalanceCard: View {
         .padding()
         .background(Color(.secondarySystemGroupedBackground))
         .cornerRadius(16)
+    }
+
+    private func refreshBalance() {
+        isRefreshing = true
+        Task {
+            try? await walletService.refreshBalance()
+            await MainActor.run {
+                isRefreshing = false
+            }
+        }
     }
 }
 
@@ -265,60 +288,76 @@ struct ConnectWalletSheet: View {
     @ObservedObject var authService: AuthService
     @Binding var isPresented: Bool
 
-    @State private var isConnecting = false
+    @State private var walletAddressInput = ""
+    @State private var showError = false
+    @State private var errorMessage = ""
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 32) {
+            VStack(spacing: 24) {
                 Spacer()
+                    .frame(height: 20)
 
                 Image(systemName: "wallet.pass.fill")
                     .font(.system(size: 60))
                     .foregroundColor(.cyan)
 
-                Text("Connect Your Wallet")
+                Text("Enter Your Wallet Address")
                     .font(.title2.bold())
 
-                VStack(spacing: 16) {
-                    // WalletConnect option
-                    Button {
-                        connectWallet()
-                    } label: {
-                        HStack {
-                            Image(systemName: "link.circle")
-                                .font(.title2)
-                            VStack(alignment: .leading) {
-                                Text("WalletConnect")
-                                    .font(.headline)
-                                Text("Connect any Ethereum wallet")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                            Spacer()
-                            if isConnecting {
-                                ProgressView()
-                            } else {
-                                Image(systemName: "chevron.right")
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                        .padding()
-                        .background(Color(.secondarySystemGroupedBackground))
-                        .cornerRadius(12)
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(isConnecting)
-                }
-                .padding(.horizontal)
-
-                Spacer()
-
-                Text("We support MetaMask, Rainbow, Trust Wallet, and other WalletConnect compatible wallets")
-                    .font(.caption)
+                Text("Paste your Ethereum wallet address below")
+                    .font(.subheadline)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal)
-                    .padding(.bottom)
+
+                // Manual wallet address entry
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Wallet Address")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    TextField("0x...", text: $walletAddressInput)
+                        .font(.system(.body, design: .monospaced))
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .padding()
+                        .background(Color(.secondarySystemGroupedBackground))
+                        .cornerRadius(12)
+                }
+                .padding(.horizontal)
+
+                // Paste button
+                Button {
+                    if let clipboardString = UIPasteboard.general.string {
+                        walletAddressInput = clipboardString
+                    }
+                } label: {
+                    HStack {
+                        Image(systemName: "doc.on.clipboard")
+                        Text("Paste from Clipboard")
+                    }
+                    .font(.subheadline)
+                    .foregroundColor(.cyan)
+                }
+
+                Spacer()
+
+                // Connect button
+                Button {
+                    connectWithAddress()
+                } label: {
+                    Text("Connect Wallet")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 54)
+                        .background(isValidAddress ? Color.cyan : Color.gray)
+                        .cornerRadius(12)
+                }
+                .disabled(!isValidAddress)
+                .padding(.horizontal)
+                .padding(.bottom)
             }
             .navigationTitle("Connect Wallet")
             .navigationBarTitleDisplayMode(.inline)
@@ -329,25 +368,29 @@ struct ConnectWalletSheet: View {
                     }
                 }
             }
+            .alert("Error", isPresented: $showError) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(errorMessage)
+            }
         }
     }
 
-    private func connectWallet() {
-        isConnecting = true
-        Task {
-            do {
-                try await walletService.connect()
-                if let address = walletService.walletAddress {
-                    try await authService.linkWallet(address: address)
-                }
-                await MainActor.run {
-                    isPresented = false
-                }
-            } catch {
-                await MainActor.run {
-                    isConnecting = false
-                }
+    private var isValidAddress: Bool {
+        walletAddressInput.hasPrefix("0x") && walletAddressInput.count == 42
+    }
+
+    private func connectWithAddress() {
+        walletService.setWalletAddress(walletAddressInput)
+
+        if walletService.isConnected {
+            Task {
+                try? await authService.linkWallet(address: walletAddressInput)
             }
+            isPresented = false
+        } else if let error = walletService.error {
+            errorMessage = error.localizedDescription
+            showError = true
         }
     }
 }

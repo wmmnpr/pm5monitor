@@ -122,7 +122,7 @@ class LobbyService: ObservableObject {
     // MARK: - Lobby Participation
 
     /// Join an existing lobby
-    func joinLobby(_ lobbyId: String, userId: String, displayName: String, walletAddress: String) async throws {
+    func joinLobby(_ lobbyId: String, userId: String, displayName: String, walletAddress: String, equipmentType: EquipmentType) async throws {
         isLoading = true
         error = nil
 
@@ -153,9 +153,10 @@ class LobbyService: ObservableObject {
             currentLobby = lobby
             let participant = LobbyParticipant(
                 id: userId,
-                oderId: userId,
+                userId: userId,
                 displayName: displayName,
                 walletAddress: walletAddress,
+                equipmentType: equipmentType,
                 status: .deposited,
                 joinedAt: Date()
             )

@@ -131,9 +131,10 @@ struct SkillRange: Codable {
 /// A participant in a lobby
 struct LobbyParticipant: Codable, Identifiable {
     let id: String
-    let oderId: String
+    let userId: String
     var displayName: String
     var walletAddress: String
+    var equipmentType: EquipmentType
     var depositTxHash: String?
     var status: ParticipantStatus
     var joinedAt: Date

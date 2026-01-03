@@ -22,7 +22,8 @@ struct RaceView: View {
                 RaceTrackView(
                     participants: raceService.participants,
                     myProgress: raceService.myProgress,
-                    targetDistance: Double(raceService.currentRace?.targetDistance ?? 2000)
+                    targetDistance: Double(raceService.currentRace?.targetDistance ?? 2000),
+                    myEquipmentType: raceService.myEquipmentType
                 )
                 .frame(height: 180)
                 .padding(.vertical, 8)
@@ -114,6 +115,7 @@ struct RaceTrackView: View {
     let participants: [RaceParticipant]
     let myProgress: RaceProgress?
     let targetDistance: Double
+    var myEquipmentType: EquipmentType = .rower
 
     var body: some View {
         GeometryReader { geometry in
@@ -152,7 +154,8 @@ struct RaceTrackView: View {
                         position: calculateXPosition(progress: progress.percentComplete, width: geometry.size.width),
                         yPosition: laneYPosition(for: 0, in: geometry.size.height),
                         color: .cyan,
-                        isMe: true
+                        isMe: true,
+                        equipmentType: myEquipmentType
                     )
                 }
 
@@ -166,7 +169,8 @@ struct RaceTrackView: View {
                         ),
                         yPosition: laneYPosition(for: index + 1, in: geometry.size.height),
                         color: .white,
-                        isMe: false
+                        isMe: false,
+                        equipmentType: participant.equipmentType
                     )
                 }
             }
@@ -198,10 +202,11 @@ struct BoatView: View {
     let yPosition: CGFloat
     let color: Color
     let isMe: Bool
+    var equipmentType: EquipmentType = .rower
 
     var body: some View {
         HStack(spacing: 4) {
-            Image(systemName: "figure.rowing")
+            Image(systemName: equipmentType.iconName)
                 .font(isMe ? .title2 : .body)
                 .foregroundColor(color)
                 .scaleEffect(x: -1, y: 1)
@@ -290,9 +295,7 @@ struct BottomMetricsPanel: View {
         HStack(spacing: 0) {
             MetricBox(title: "WATTS", value: "\(metrics.watts)")
             Divider().frame(height: 50).background(Color.gray)
-            MetricBox(title: "S/M", value: "\(metrics.strokeRate)")
-            Divider().frame(height: 50).background(Color.gray)
-            MetricBox(title: "STROKES", value: "\(metrics.strokeCount)")
+            MetricBox(title: "CALORIES", value: "\(metrics.calories)")
             Divider().frame(height: 50).background(Color.gray)
             MetricBox(
                 title: "POSITION",

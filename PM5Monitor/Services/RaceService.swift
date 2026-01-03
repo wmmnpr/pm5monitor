@@ -12,6 +12,7 @@ class RaceService: ObservableObject {
     @Published var currentRace: Race?
     @Published var participants: [RaceParticipant] = []
     @Published var myProgress: RaceProgress?
+    @Published var myEquipmentType: EquipmentType = .rower
     @Published var countdown: Int?
     @Published var error: RaceError?
 

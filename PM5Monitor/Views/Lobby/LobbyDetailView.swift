@@ -4,11 +4,14 @@ struct LobbyDetailView: View {
     let lobby: Lobby
     @ObservedObject var lobbyService: LobbyService
     @ObservedObject var authService: AuthService
+    @StateObject private var walletService = WalletService()
 
     @State private var isJoining = false
     @State private var hasJoined = false
     @State private var isReady = false
     @State private var showWalletRequired = false
+    @State private var showInsufficientBalance = false
+    @State private var selectedEquipment: EquipmentType = .rower
 
     var body: some View {
         ScrollView {
@@ -24,6 +27,11 @@ struct LobbyDetailView: View {
                     participants: lobbyService.participants,
                     maxParticipants: lobby.maxParticipants
                 )
+
+                // Equipment selection (when not joined)
+                if !hasJoined {
+                    EquipmentSelectionCard(selectedEquipment: $selectedEquipment)
+                }
 
                 // Action buttons
                 ActionButtonsSection(
@@ -46,6 +54,11 @@ struct LobbyDetailView: View {
         } message: {
             Text("Please connect your wallet before joining a race")
         }
+        .alert("Insufficient Balance", isPresented: $showInsufficientBalance) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("You need at least \(lobby.formattedEntryFee) + gas to join this race. Current balance: \(walletService.formattedETHBalance)")
+        }
         .onAppear {
             lobbyService.subscribeToParticipants(lobbyId: lobby.id)
         }
@@ -60,20 +73,37 @@ struct LobbyDetailView: View {
         guard let userId = authService.currentUser?.id,
               let profile = authService.userProfile else { return }
 
-        guard let walletAddress = profile.walletAddress, !walletAddress.isEmpty else {
+        // Check wallet is connected
+        guard walletService.isConnected,
+              let walletAddress = walletService.walletAddress else {
             showWalletRequired = true
+            return
+        }
+
+        // Check sufficient balance
+        guard walletService.hasEnoughBalance(entryFeeWei: lobby.entryFee) else {
+            showInsufficientBalance = true
             return
         }
 
         isJoining = true
         Task {
             do {
+                // First, deposit to escrow
+                // let txHash = try await walletService.depositToEscrow(
+                //     lobbyId: lobby.id,
+                //     entryFeeWei: lobby.entryFee
+                // )
+
+                // Then join the lobby
                 try await lobbyService.joinLobby(
                     lobby.id,
                     userId: userId,
                     displayName: profile.displayName,
-                    walletAddress: walletAddress
+                    walletAddress: walletAddress,
+                    equipmentType: selectedEquipment
                 )
+
                 await MainActor.run {
                     hasJoined = true
                     isJoining = false
@@ -250,24 +280,106 @@ struct ParticipantsCard: View {
                     .padding(.vertical, 20)
             } else {
                 ForEach(participants) { participant in
-                    HStack {
-                        Image(systemName: "person.circle.fill")
+                    HStack(spacing: 12) {
+                        // Equipment icon
+                        Image(systemName: participant.equipmentType.iconName)
                             .font(.title2)
-                            .foregroundColor(.cyan)
+                            .foregroundColor(equipmentColor(for: participant.equipmentType))
+                            .frame(width: 36)
 
-                        Text(participant.displayName)
-                            .font(.subheadline)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(participant.displayName)
+                                .font(.subheadline.weight(.medium))
+
+                            Text(participant.equipmentType.displayName)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
 
                         Spacer()
 
                         StatusBadge(status: participant.status)
                     }
+                    .padding(.vertical, 4)
                 }
             }
         }
         .padding()
         .background(Color(.secondarySystemGroupedBackground))
         .cornerRadius(16)
+    }
+
+    private func equipmentColor(for type: EquipmentType) -> Color {
+        switch type {
+        case .rower: return .cyan
+        case .bike: return .orange
+        case .ski: return .purple
+        }
+    }
+}
+
+// MARK: - Equipment Selection Card
+
+struct EquipmentSelectionCard: View {
+    @Binding var selectedEquipment: EquipmentType
+
+    var body: some View {
+        VStack(spacing: 16) {
+            HStack {
+                Text("Your Equipment")
+                    .font(.headline)
+                Spacer()
+            }
+
+            HStack(spacing: 12) {
+                ForEach(EquipmentType.allCases) { equipment in
+                    EquipmentOptionButton(
+                        equipment: equipment,
+                        isSelected: selectedEquipment == equipment,
+                        action: { selectedEquipment = equipment }
+                    )
+                }
+            }
+        }
+        .padding()
+        .background(Color(.secondarySystemGroupedBackground))
+        .cornerRadius(16)
+    }
+}
+
+struct EquipmentOptionButton: View {
+    let equipment: EquipmentType
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 8) {
+                Image(systemName: equipment.iconName)
+                    .font(.title)
+                    .foregroundColor(isSelected ? equipmentColor : .gray)
+
+                Text(equipment.shortName)
+                    .font(.caption.weight(.medium))
+                    .foregroundColor(isSelected ? .primary : .secondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .background(isSelected ? equipmentColor.opacity(0.2) : Color(.tertiarySystemGroupedBackground))
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(isSelected ? equipmentColor : Color.clear, lineWidth: 2)
+            )
+        }
+    }
+
+    private var equipmentColor: Color {
+        switch equipment {
+        case .rower: return .cyan
+        case .bike: return .orange
+        case .ski: return .purple
+        }
     }
 }
 

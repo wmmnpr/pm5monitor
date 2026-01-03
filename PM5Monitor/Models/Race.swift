@@ -34,9 +34,9 @@ struct RaceParticipant: Identifiable {
     let id: String
     let userId: String
     var displayName: String
+    var equipmentType: EquipmentType
     var distance: Double
     var pace: TimeInterval
-    var strokeRate: Int
     var watts: Int
     var isFinished: Bool
     var finishTime: TimeInterval?
@@ -107,10 +107,10 @@ struct RaceResult: Codable, Identifiable {
     var payout: String // wei
     var walletAddress: String
 
-    /// Payout in USDC
-    var payoutUSDC: Double {
+    /// Payout in ETH
+    var payoutETH: Double {
         guard let wei = Double(payout) else { return 0 }
-        return wei / 1_000_000
+        return wei / 1_000_000_000_000_000_000
     }
 }
 
@@ -120,7 +120,6 @@ struct RaceUpdate: Codable {
     let participantId: String
     let distance: Double
     let pace: TimeInterval
-    let strokeRate: Int
     let watts: Int
     let timestamp: Date
 
@@ -128,7 +127,6 @@ struct RaceUpdate: Codable {
         self.participantId = participantId
         self.distance = metrics.distance
         self.pace = metrics.pace
-        self.strokeRate = metrics.strokeRate
         self.watts = metrics.watts
         self.timestamp = Date()
     }

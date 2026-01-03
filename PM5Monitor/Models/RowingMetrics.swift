@@ -1,6 +1,51 @@
 import Foundation
 
-/// Real-time rowing metrics from the PM5 rowing machine
+// MARK: - Equipment Type
+
+/// The type of Concept2 ergometer being used
+enum EquipmentType: String, Codable, CaseIterable, Identifiable {
+    case rower = "rower"
+    case bike = "bike"
+    case ski = "ski"
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .rower: return "RowErg"
+        case .bike: return "BikeErg"
+        case .ski: return "SkiErg"
+        }
+    }
+
+    var shortName: String {
+        switch self {
+        case .rower: return "Row"
+        case .bike: return "Bike"
+        case .ski: return "Ski"
+        }
+    }
+
+    /// SF Symbol icon for this equipment
+    var iconName: String {
+        switch self {
+        case .rower: return "figure.rowing"
+        case .bike: return "figure.outdoor.cycle"
+        case .ski: return "figure.skiing.crosscountry"
+        }
+    }
+
+    /// Color associated with this equipment
+    var color: String {
+        switch self {
+        case .rower: return "cyan"
+        case .bike: return "orange"
+        case .ski: return "purple"
+        }
+    }
+}
+
+/// Real-time metrics from a PM5 ergometer (row, bike, or ski)
 struct RowingMetrics: Equatable {
     /// Elapsed time in seconds
     var elapsedTime: TimeInterval = 0
