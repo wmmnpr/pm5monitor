@@ -229,13 +229,6 @@ struct ProfileView: View {
                     .padding(.vertical, 8)
                 }
 
-                // Concept2 Stats
-                if let profile = authService.userProfile {
-                    Section("Concept2 Profile") {
-                        StatRow(title: "Lifetime Meters", value: profile.formattedLifetimeMeters)
-                    }
-                }
-
                 // Race Stats section
                 if let profile = authService.userProfile {
                     Section("Race Statistics") {
