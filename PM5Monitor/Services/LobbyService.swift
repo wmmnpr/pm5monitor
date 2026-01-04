@@ -1,7 +1,5 @@
 import Foundation
 
-// import FirebaseFirestore
-
 @MainActor
 class LobbyService: ObservableObject {
 
@@ -15,13 +13,17 @@ class LobbyService: ObservableObject {
 
     // MARK: - Private
 
-    // private let db = Firestore.firestore()
-    // private var lobbyListener: ListenerRegistration?
-    // private var participantsListener: ListenerRegistration?
+    private let networkService = NetworkService.shared
+    private var pollingTimer: Timer?
+
+    // MARK: - Init
+
+    init() {
+        networkService.connect()
+    }
 
     // MARK: - Lobby Creation
 
-    /// Create a new lobby
     func createLobby(
         creatorId: String,
         distance: RaceDistance,
@@ -32,220 +34,145 @@ class LobbyService: ObservableObject {
     ) async throws -> Lobby {
         isLoading = true
         error = nil
-
         defer { isLoading = false }
 
-        let lobbyId = UUID().uuidString
-        let lobby = Lobby(
-            id: lobbyId,
-            creatorId: creatorId,
-            raceDistance: distance.rawValue,
-            entryFee: entryFee.weiAmount,
-            payoutMode: payoutMode,
-            maxParticipants: maxParticipants,
-            minParticipants: minParticipants
-        )
+        do {
+            let serverLobby = try await networkService.createLobby(
+                creatorId: creatorId,
+                raceDistance: distance.rawValue,
+                entryFee: entryFee.weiAmount,
+                payoutMode: payoutMode.rawValue,
+                maxParticipants: maxParticipants
+            )
 
-        // Firebase implementation:
-        // try await db.collection("lobbies").document(lobbyId).setData(from: lobby)
+            let lobby = convertServerLobby(serverLobby)
+            currentLobby = lobby
 
-        currentLobby = lobby
-        return lobby
+            // Refresh lobby list
+            await fetchAvailableLobbies()
+
+            return lobby
+        } catch {
+            self.error = .unknown(error)
+            throw error
+        }
     }
 
     // MARK: - Lobby Discovery
 
-    /// Fetch available lobbies
-    func fetchAvailableLobbies() async throws {
+    func fetchAvailableLobbies() async {
         isLoading = true
         error = nil
-
         defer { isLoading = false }
 
-        // Firebase implementation:
-        // let snapshot = try await db.collection("lobbies")
-        //     .whereField("status", isEqualTo: LobbyStatus.waiting.rawValue)
-        //     .order(by: "createdAt", descending: true)
-        //     .limit(to: 50)
-        //     .getDocuments()
-        //
-        // availableLobbies = snapshot.documents.compactMap { doc in
-        //     try? doc.data(as: Lobby.self)
-        // }
-
-        // Mock implementation
-        #if DEBUG
-        availableLobbies = [
-            Lobby(
-                id: "mock-1",
-                creatorId: "user-1",
-                raceDistance: 5000,
-                entryFee: "1000000", // 1 USDC
-                payoutMode: .winnerTakesAll,
-                participantCount: 3
-            ),
-            Lobby(
-                id: "mock-2",
-                creatorId: "user-2",
-                raceDistance: 10000,
-                entryFee: "5000000", // 5 USDC
-                payoutMode: .topThree,
-                participantCount: 5
-            )
-        ]
-        #endif
+        await networkService.fetchLobbies()
+        availableLobbies = networkService.lobbies.map { convertServerLobby($0) }
     }
 
-    /// Subscribe to real-time lobby updates
     func subscribeToLobbies() {
-        // Firebase implementation:
-        // lobbyListener = db.collection("lobbies")
-        //     .whereField("status", isEqualTo: LobbyStatus.waiting.rawValue)
-        //     .addSnapshotListener { [weak self] snapshot, error in
-        //         guard let self = self, let snapshot = snapshot else { return }
-        //         Task { @MainActor in
-        //             self.availableLobbies = snapshot.documents.compactMap { doc in
-        //                 try? doc.data(as: Lobby.self)
-        //             }
-        //         }
-        //     }
+        // Start polling for updates
+        pollingTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                await self?.fetchAvailableLobbies()
+            }
+        }
+
+        Task {
+            await fetchAvailableLobbies()
+        }
     }
 
-    /// Unsubscribe from lobby updates
     func unsubscribe() {
-        // lobbyListener?.remove()
-        // participantsListener?.remove()
+        pollingTimer?.invalidate()
+        pollingTimer = nil
         currentLobby = nil
         participants = []
     }
 
     // MARK: - Lobby Participation
 
-    /// Join an existing lobby
-    func joinLobby(_ lobbyId: String, userId: String, displayName: String, walletAddress: String, equipmentType: EquipmentType) async throws {
+    func joinLobby(
+        _ lobbyId: String,
+        userId: String,
+        displayName: String,
+        walletAddress: String,
+        equipmentType: EquipmentType
+    ) async throws {
         isLoading = true
         error = nil
-
         defer { isLoading = false }
 
-        // Firebase implementation:
-        // Check if lobby exists and is not full
-        // let lobbyDoc = try await db.collection("lobbies").document(lobbyId).getDocument()
-        // guard let lobby = try? lobbyDoc.data(as: Lobby.self),
-        //       lobby.status == .waiting,
-        //       !lobby.isFull else {
-        //     throw LobbyError.lobbyNotAvailable
-        // }
-        //
-        // Add participant
-        // let participant = LobbyParticipant(...)
-        // try await db.collection("lobbies").document(lobbyId)
-        //     .collection("participants").document(userId).setData(from: participant)
-        //
-        // Increment participant count
-        // try await db.collection("lobbies").document(lobbyId).updateData([
-        //     "participantCount": FieldValue.increment(Int64(1))
-        // ])
-
-        // Mock implementation
-        #if DEBUG
-        if let lobby = availableLobbies.first(where: { $0.id == lobbyId }) {
-            currentLobby = lobby
-            let participant = LobbyParticipant(
-                id: userId,
-                userId: userId,
+        do {
+            try await networkService.joinLobby(
+                lobbyId: lobbyId,
+                oderId: userId,
                 displayName: displayName,
                 walletAddress: walletAddress,
-                equipmentType: equipmentType,
-                status: .deposited,
-                joinedAt: Date()
+                equipmentType: equipmentType.rawValue
             )
-            participants = [participant]
+
+            if let serverLobby = networkService.currentLobby {
+                currentLobby = convertServerLobby(serverLobby)
+                participants = serverLobby.participants.map { convertServerParticipant($0) }
+            }
+
+            await fetchAvailableLobbies()
+        } catch {
+            self.error = .unknown(error)
+            throw error
         }
-        #endif
     }
 
-    /// Leave current lobby
     func leaveLobby() async throws {
-        guard let lobby = currentLobby else { return }
-
-        // Firebase implementation:
-        // Remove participant document
-        // Decrement participant count
-
         currentLobby = nil
         participants = []
     }
 
-    /// Mark as ready
     func setReady(userId: String) async throws {
         guard let lobby = currentLobby else {
             throw LobbyError.notInLobby
         }
 
-        // Firebase implementation:
-        // try await db.collection("lobbies").document(lobby.id)
-        //     .collection("participants").document(userId)
-        //     .updateData(["status": ParticipantStatus.ready.rawValue])
+        try await networkService.setReady(lobbyId: lobby.id, oderId: userId)
 
-        // Update local state
-        if let index = participants.firstIndex(where: { $0.id == userId }) {
-            participants[index].status = .ready
+        if let serverLobby = networkService.currentLobby {
+            currentLobby = convertServerLobby(serverLobby)
+            participants = serverLobby.participants.map { convertServerParticipant($0) }
         }
     }
 
-    /// Subscribe to participants in current lobby
-    func subscribeToParticipants(lobbyId: String) {
-        // Firebase implementation:
-        // participantsListener = db.collection("lobbies").document(lobbyId)
-        //     .collection("participants")
-        //     .addSnapshotListener { [weak self] snapshot, error in
-        //         guard let self = self, let snapshot = snapshot else { return }
-        //         Task { @MainActor in
-        //             self.participants = snapshot.documents.compactMap { doc in
-        //                 try? doc.data(as: LobbyParticipant.self)
-        //             }
-        //         }
-        //     }
+    // MARK: - Bot Management
+
+    func addBot(difficulty: BotDifficulty) async throws {
+        guard let lobby = currentLobby else {
+            throw LobbyError.notInLobby
+        }
+
+        try await networkService.addBot(lobbyId: lobby.id, difficulty: difficulty.rawValue)
+
+        if let serverLobby = networkService.currentLobby {
+            currentLobby = convertServerLobby(serverLobby)
+            participants = serverLobby.participants.map { convertServerParticipant($0) }
+        }
     }
 
-    // MARK: - Matchmaking
+    // MARK: - Subscribe to Participants
 
-    /// Find a match based on skill level
-    func findMatch(
-        userId: String,
-        distance: RaceDistance,
-        entryFee: EntryFeePreset,
-        skillRating: Int
-    ) async throws -> Lobby? {
-        isLoading = true
-        error = nil
-
-        defer { isLoading = false }
-
-        // Calculate skill range (±200)
-        let skillRange = SkillRange(min: skillRating - 200, max: skillRating + 200)
-
-        // Firebase implementation:
-        // Query for matching lobbies
-        // let snapshot = try await db.collection("lobbies")
-        //     .whereField("status", isEqualTo: LobbyStatus.waiting.rawValue)
-        //     .whereField("raceDistance", isEqualTo: distance.rawValue)
-        //     .whereField("entryFee", isEqualTo: entryFee.weiAmount)
-        //     .limit(to: 10)
-        //     .getDocuments()
-        //
-        // Filter by skill range
-        // let matching = snapshot.documents.compactMap { ... }
-        // return matching.first
-
-        // Mock: create a new lobby if none found
-        return nil
+    func subscribeToParticipants(lobbyId: String) {
+        // Poll for participant updates
+        pollingTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                guard let self = self else { return }
+                if let serverLobby = await self.networkService.fetchLobby(id: lobbyId) {
+                    self.currentLobby = self.convertServerLobby(serverLobby)
+                    self.participants = serverLobby.participants.map { self.convertServerParticipant($0) }
+                }
+            }
+        }
     }
 
     // MARK: - Start Race
 
-    /// Start the race (creator only)
     func startRace() async throws -> String {
         guard let lobby = currentLobby else {
             throw LobbyError.notInLobby
@@ -255,13 +182,90 @@ class LobbyService: ObservableObject {
             throw LobbyError.notEnoughParticipants
         }
 
-        // Firebase implementation:
-        // Update lobby status to starting
-        // Create race document
-        // Return race ID
+        let race = try await networkService.startRace(lobbyId: lobby.id)
+        return race.id
+    }
 
-        let raceId = UUID().uuidString
-        return raceId
+    // MARK: - Conversion Helpers
+
+    private func convertServerLobby(_ server: ServerLobby) -> Lobby {
+        Lobby(
+            id: server.id,
+            creatorId: server.creatorId,
+            raceDistance: server.raceDistance,
+            entryFee: server.entryFee,
+            payoutMode: PayoutMode(rawValue: server.payoutMode) ?? .winnerTakesAll,
+            status: LobbyStatus(rawValue: server.status) ?? .waiting,
+            maxParticipants: server.maxParticipants,
+            minParticipants: server.minParticipants,
+            participantCount: server.displayParticipantCount
+        )
+    }
+
+    private func convertServerParticipant(_ server: ServerParticipant) -> LobbyParticipant {
+        LobbyParticipant(
+            id: server.id,
+            userId: server.oderId,
+            displayName: server.displayName,
+            walletAddress: server.walletAddress,
+            equipmentType: server.equipment,
+            status: ParticipantStatus(rawValue: server.status) ?? .deposited,
+            joinedAt: ISO8601DateFormatter().date(from: server.joinedAt) ?? Date()
+        )
+    }
+
+    // MARK: - Quick Match
+
+    func findMatch(
+        userId: String,
+        distance: RaceDistance,
+        entryFee: EntryFeePreset,
+        skillRating: Int
+    ) async throws -> Lobby? {
+        // Look for an existing lobby with matching criteria
+        await fetchAvailableLobbies()
+
+        // Find a matching lobby
+        if let matchingLobby = availableLobbies.first(where: { lobby in
+            lobby.raceDistance == distance.rawValue &&
+            lobby.entryFee == entryFee.weiAmount &&
+            !lobby.isFull &&
+            lobby.status == .waiting
+        }) {
+            return matchingLobby
+        }
+
+        // No matching lobby found - could create one automatically
+        return nil
+    }
+}
+
+// MARK: - Bot Difficulty
+
+enum BotDifficulty: String, CaseIterable, Identifiable {
+    case easy = "easy"
+    case medium = "medium"
+    case hard = "hard"
+    case elite = "elite"
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .easy: return "Easy"
+        case .medium: return "Medium"
+        case .hard: return "Hard"
+        case .elite: return "Elite"
+        }
+    }
+
+    var description: String {
+        switch self {
+        case .easy: return "2:30/500m pace, ~120W"
+        case .medium: return "2:00/500m pace, ~180W"
+        case .hard: return "1:40/500m pace, ~250W"
+        case .elite: return "1:30/500m pace, ~320W"
+        }
     }
 }
 

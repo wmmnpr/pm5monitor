@@ -19,6 +19,7 @@ class BLEManager: NSObject, ObservableObject {
 
     // MARK: - PM5 UUIDs
 
+    // PM5 Rowing Service
     private let pm5RowingServiceUUID = CBUUID(string: "CE060030-43E5-11E4-916C-0800200C9A66")
 
     // General Status - provides elapsed time, distance, workout state
@@ -36,10 +37,20 @@ class BLEManager: NSObject, ObservableObject {
     // Additional Status 2 - provides average power
     private let additionalStatus2UUID = CBUUID(string: "CE060034-43E5-11E4-916C-0800200C9A66")
 
+    // PM5 Control Service - for configuring workouts
+    private let pm5ControlServiceUUID = CBUUID(string: "CE060020-43E5-11E4-916C-0800200C9A66")
+
+    // Control Receive characteristic - write commands to PM5
+    private let controlReceiveUUID = CBUUID(string: "CE060021-43E5-11E4-916C-0800200C9A66")
+
+    // Control Transmit characteristic - receive responses from PM5
+    private let controlTransmitUUID = CBUUID(string: "CE060022-43E5-11E4-916C-0800200C9A66")
+
     // MARK: - Private
 
     private var centralManager: CBCentralManager!
     private var connectedPeripheral: CBPeripheral?
+    private var controlCharacteristic: CBCharacteristic?
     private let maxForceHistorySize = 20
 
     // MARK: - Init
@@ -80,8 +91,78 @@ class BLEManager: NSObject, ObservableObject {
         cleanup()
     }
 
+    /// Configure PM5 for a single distance workout
+    /// - Parameter distance: Target distance in meters
+    func configureWorkout(distance: Int) {
+        guard let peripheral = connectedPeripheral,
+              let characteristic = controlCharacteristic else {
+            print("BLE: Cannot configure workout - not connected or control not available")
+            return
+        }
+
+        // Build CSAFE command for single distance workout
+        // CSAFE frame format:
+        // [F1] Start flag
+        // [payload]
+        // [checksum]
+        // [F2] Stop flag
+
+        var command = Data()
+
+        // CSAFE Start Frame
+        command.append(0xF1)
+
+        // PM5 Proprietary command: Set Workout (0x01)
+        // Identifier byte: 0x76 (proprietary short command)
+        command.append(0x76)
+
+        // Set Workout Distance command
+        // PM Cmd: CSAFE_PM_SET_GOAL_WORKOUT_DISTANCE
+        command.append(0x05) // Data length
+        command.append(0x21) // PM SET command
+
+        // Distance in meters (3 bytes, little-endian)
+        let distanceBytes = withUnsafeBytes(of: UInt32(distance).littleEndian) { Array($0) }
+        command.append(distanceBytes[0])
+        command.append(distanceBytes[1])
+        command.append(distanceBytes[2])
+
+        // Workout type: Single Distance
+        command.append(0x01) // SINGLE_DISTANCE workout type
+
+        // Calculate checksum (XOR of all bytes between flags)
+        var checksum: UInt8 = 0
+        for i in 1..<command.count {
+            checksum ^= command[i]
+        }
+        command.append(checksum)
+
+        // CSAFE Stop Frame
+        command.append(0xF2)
+
+        peripheral.writeValue(command, for: characteristic, type: .withResponse)
+        print("BLE: Configured workout for \(distance)m")
+    }
+
+    /// Reset the PM5 to idle state
+    func resetWorkout() {
+        guard let peripheral = connectedPeripheral,
+              let characteristic = controlCharacteristic else { return }
+
+        // CSAFE Reset command
+        var command = Data()
+        command.append(0xF1) // Start frame
+        command.append(0x81) // CSAFE_RESET_CMD
+        command.append(0x81) // Checksum (single byte)
+        command.append(0xF2) // Stop frame
+
+        peripheral.writeValue(command, for: characteristic, type: .withResponse)
+        print("BLE: Reset workout")
+    }
+
     private func cleanup() {
         connectedPeripheral = nil
+        controlCharacteristic = nil
         isConnected = false
         isConnecting = false
         currentWatts = 0
@@ -126,7 +207,8 @@ extension BLEManager: CBCentralManagerDelegate {
         Task { @MainActor in
             isConnecting = false
             isConnected = true
-            peripheral.discoverServices([pm5RowingServiceUUID])
+            // Discover both rowing service and control service
+            peripheral.discoverServices([pm5RowingServiceUUID, pm5ControlServiceUUID])
         }
     }
 
@@ -161,6 +243,11 @@ extension BLEManager: CBPeripheralDelegate {
                         additionalStrokeDataUUID,
                         additionalStatus2UUID
                     ], for: service)
+                } else if service.uuid == pm5ControlServiceUUID {
+                    peripheral.discoverCharacteristics([
+                        controlReceiveUUID,
+                        controlTransmitUUID
+                    ], for: service)
                 }
             }
         }
@@ -171,6 +258,13 @@ extension BLEManager: CBPeripheralDelegate {
             guard let characteristics = service.characteristics else { return }
 
             for characteristic in characteristics {
+                // Store control characteristic for writing commands
+                if characteristic.uuid == controlReceiveUUID {
+                    controlCharacteristic = characteristic
+                    print("BLE: Control characteristic discovered")
+                }
+
+                // Subscribe to notifications
                 if characteristic.properties.contains(.notify) {
                     peripheral.setNotifyValue(true, for: characteristic)
                 }

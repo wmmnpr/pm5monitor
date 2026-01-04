@@ -11,7 +11,12 @@ struct LobbyDetailView: View {
     @State private var isReady = false
     @State private var showWalletRequired = false
     @State private var showInsufficientBalance = false
+    @State private var showAddBot = false
     @State private var selectedEquipment: EquipmentType = .rower
+
+    private var isCreator: Bool {
+        authService.currentUser?.id == lobby.creatorId
+    }
 
     var body: some View {
         ScrollView {
@@ -27,6 +32,13 @@ struct LobbyDetailView: View {
                     participants: lobbyService.participants,
                     maxParticipants: lobby.maxParticipants
                 )
+
+                // Add Bot section (for creator or when in lobby)
+                if hasJoined && lobbyService.participants.count < lobby.maxParticipants {
+                    AddBotCard(onAddBot: { difficulty in
+                        addBot(difficulty: difficulty)
+                    })
+                }
 
                 // Equipment selection (when not joined)
                 if !hasJoined {
@@ -134,6 +146,12 @@ struct LobbyDetailView: View {
                 hasJoined = false
                 isReady = false
             }
+        }
+    }
+
+    private func addBot(difficulty: BotDifficulty) {
+        Task {
+            try? await lobbyService.addBot(difficulty: difficulty)
         }
     }
 }
@@ -414,6 +432,53 @@ struct StatusBadge: View {
         case .finished: return .purple
         case .disconnected: return .red
         }
+    }
+}
+
+// MARK: - Add Bot Card
+
+struct AddBotCard: View {
+    let onAddBot: (BotDifficulty) -> Void
+    @State private var selectedDifficulty: BotDifficulty = .medium
+
+    var body: some View {
+        VStack(spacing: 16) {
+            HStack {
+                Text("Add Bot")
+                    .font(.headline)
+                Spacer()
+            }
+
+            // Difficulty selection
+            ForEach(BotDifficulty.allCases) { difficulty in
+                Button {
+                    onAddBot(difficulty)
+                } label: {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(difficulty.displayName)
+                                .font(.subheadline.weight(.medium))
+                                .foregroundColor(.primary)
+                            Text(difficulty.description)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+
+                        Spacer()
+
+                        Image(systemName: "plus.circle.fill")
+                            .font(.title2)
+                            .foregroundColor(.cyan)
+                    }
+                    .padding()
+                    .background(Color(.tertiarySystemGroupedBackground))
+                    .cornerRadius(12)
+                }
+            }
+        }
+        .padding()
+        .background(Color(.secondarySystemGroupedBackground))
+        .cornerRadius(16)
     }
 }
 

@@ -27,6 +27,7 @@
 		A10025 /* LobbyDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10026 /* LobbyDetailView.swift */; };
 		A10027 /* RaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10028 /* RaceView.swift */; };
 		A10029 /* WalletView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1002A /* WalletView.swift */; };
+		A10090 /* NetworkService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10091 /* NetworkService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -52,6 +53,7 @@
 		A10026 /* LobbyDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LobbyDetailView.swift; sourceTree = "<group>"; };
 		A10028 /* RaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RaceView.swift; sourceTree = "<group>"; };
 		A1002A /* WalletView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WalletView.swift; sourceTree = "<group>"; };
+		A10091 /* NetworkService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -121,6 +123,7 @@
 			children = (
 				A10014 /* AuthService.swift */,
 				A10016 /* LobbyService.swift */,
+				A10091 /* NetworkService.swift */,
 				A10018 /* RaceService.swift */,
 				A1001C /* WalletService.swift */,
 			);
@@ -256,6 +259,7 @@
 				A10025 /* LobbyDetailView.swift in Sources */,
 				A10027 /* RaceView.swift in Sources */,
 				A10029 /* WalletView.swift in Sources */,
+				A10090 /* NetworkService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

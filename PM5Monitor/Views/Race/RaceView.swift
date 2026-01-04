@@ -109,7 +109,7 @@ struct RaceHeaderView: View {
     }
 }
 
-// MARK: - Race Track View
+// MARK: - Race Track View (ErgRace Style)
 
 struct RaceTrackView: View {
     let participants: [RaceParticipant]
@@ -117,105 +117,195 @@ struct RaceTrackView: View {
     let targetDistance: Double
     var myEquipmentType: EquipmentType = .rower
 
+    private let laneColors: [Color] = [
+        Color(red: 0.1, green: 0.3, blue: 0.5),  // Dark blue
+        Color(red: 0.15, green: 0.35, blue: 0.55), // Slightly lighter
+    ]
+
     var body: some View {
         GeometryReader { geometry in
-            ZStack {
-                // Track lanes
-                ForEach(0..<max(1, sortedParticipants.count + 1), id: \.self) { index in
-                    let yPosition = laneYPosition(for: index, in: geometry.size.height)
+            let laneCount = max(2, allRacers.count)
+            let laneHeight = geometry.size.height / CGFloat(laneCount)
 
-                    // Lane line
-                    Rectangle()
-                        .fill(Color.blue.opacity(0.3))
-                        .frame(height: 2)
-                        .position(x: geometry.size.width / 2, y: yPosition)
+            ZStack {
+                // Lane backgrounds (alternating water colors)
+                VStack(spacing: 0) {
+                    ForEach(0..<laneCount, id: \.self) { index in
+                        Rectangle()
+                            .fill(laneColors[index % 2])
+                            .frame(height: laneHeight)
+                    }
+                }
+
+                // Distance markers
+                ForEach(distanceMarkers, id: \.self) { marker in
+                    let xPos = calculateXPosition(progress: marker / targetDistance, width: geometry.size.width)
+
+                    VStack {
+                        Rectangle()
+                            .fill(Color.white.opacity(0.2))
+                            .frame(width: 1, height: geometry.size.height)
+
+                        Text("\(Int(marker))m")
+                            .font(.system(size: 8))
+                            .foregroundColor(.white.opacity(0.4))
+                    }
+                    .position(x: xPos, y: geometry.size.height / 2)
+                }
+
+                // Lane dividers
+                ForEach(0..<laneCount, id: \.self) { index in
+                    if index > 0 {
+                        Rectangle()
+                            .fill(Color.white.opacity(0.3))
+                            .frame(width: geometry.size.width, height: 1)
+                            .position(x: geometry.size.width / 2, y: CGFloat(index) * laneHeight)
+                    }
                 }
 
                 // Start line
                 Rectangle()
-                    .fill(Color.white.opacity(0.5))
-                    .frame(width: 2, height: geometry.size.height)
-                    .position(x: 30, y: geometry.size.height / 2)
+                    .fill(Color.green.opacity(0.8))
+                    .frame(width: 3, height: geometry.size.height)
+                    .position(x: 35, y: geometry.size.height / 2)
 
-                // Finish line
-                VStack(spacing: 0) {
-                    ForEach(0..<10, id: \.self) { i in
-                        Rectangle()
-                            .fill(i % 2 == 0 ? Color.white : Color.black)
-                            .frame(width: 8, height: 15)
+                // Finish line (checkered pattern)
+                HStack(spacing: 0) {
+                    ForEach(0..<2, id: \.self) { col in
+                        VStack(spacing: 0) {
+                            ForEach(0..<Int(laneCount * 2), id: \.self) { row in
+                                Rectangle()
+                                    .fill((row + col) % 2 == 0 ? Color.white : Color.black)
+                                    .frame(width: 6, height: laneHeight / 2)
+                            }
+                        }
                     }
                 }
-                .position(x: geometry.size.width - 20, y: geometry.size.height / 2)
+                .position(x: geometry.size.width - 18, y: geometry.size.height / 2)
 
-                // My boat
-                if let progress = myProgress {
-                    BoatView(
-                        name: "YOU",
-                        position: calculateXPosition(progress: progress.percentComplete, width: geometry.size.width),
-                        yPosition: laneYPosition(for: 0, in: geometry.size.height),
-                        color: .cyan,
-                        isMe: true,
-                        equipmentType: myEquipmentType
-                    )
-                }
+                // Racers
+                ForEach(Array(allRacers.enumerated()), id: \.element.id) { index, racer in
+                    let progress = racer.isMe ?
+                        (myProgress?.percentComplete ?? 0) :
+                        racer.progress(toward: targetDistance)
 
-                // Other participants
-                ForEach(Array(sortedParticipants.enumerated()), id: \.element.id) { index, participant in
-                    BoatView(
-                        name: String(participant.displayName.prefix(6)),
-                        position: calculateXPosition(
-                            progress: participant.progress(toward: targetDistance),
-                            width: geometry.size.width
-                        ),
-                        yPosition: laneYPosition(for: index + 1, in: geometry.size.height),
-                        color: .white,
-                        isMe: false,
-                        equipmentType: participant.equipmentType
+                    RacerView(
+                        racer: racer,
+                        xPosition: calculateXPosition(progress: progress, width: geometry.size.width),
+                        laneHeight: laneHeight,
+                        laneIndex: index
                     )
                 }
             }
         }
-        .background(Color.black)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
-    private var sortedParticipants: [RaceParticipant] {
-        participants.filter { $0.id != "current-user" }.sorted { $0.distance > $1.distance }
+    private var allRacers: [RacerDisplayInfo] {
+        var racers: [RacerDisplayInfo] = []
+
+        // Add self first
+        racers.append(RacerDisplayInfo(
+            id: "me",
+            displayName: "YOU",
+            equipmentType: myEquipmentType,
+            distance: myProgress?.distance ?? 0,
+            isMe: true
+        ))
+
+        // Add other participants
+        for participant in participants where participant.id != "current-user" {
+            racers.append(RacerDisplayInfo(
+                id: participant.id,
+                displayName: participant.displayName,
+                equipmentType: participant.equipmentType,
+                distance: participant.distance,
+                isMe: false
+            ))
+        }
+
+        return racers
     }
 
-    private func laneYPosition(for index: Int, in height: CGFloat) -> CGFloat {
-        let laneCount = max(2, sortedParticipants.count + 1)
-        let laneHeight = height / CGFloat(laneCount)
-        return (CGFloat(index) + 0.5) * laneHeight
+    private var distanceMarkers: [Double] {
+        let interval: Double
+        if targetDistance <= 500 {
+            interval = 100
+        } else if targetDistance <= 2000 {
+            interval = 250
+        } else {
+            interval = 500
+        }
+
+        var markers: [Double] = []
+        var current = interval
+        while current < targetDistance {
+            markers.append(current)
+            current += interval
+        }
+        return markers
     }
 
     private func calculateXPosition(progress: Double, width: CGFloat) -> CGFloat {
         let trackStart: CGFloat = 40
-        let trackEnd = width - 30
+        let trackEnd = width - 25
         let trackLength = trackEnd - trackStart
         return trackStart + (trackLength * CGFloat(min(1.0, progress)))
     }
 }
 
-struct BoatView: View {
-    let name: String
-    let position: CGFloat
-    let yPosition: CGFloat
-    let color: Color
+struct RacerDisplayInfo: Identifiable {
+    let id: String
+    let displayName: String
+    let equipmentType: EquipmentType
+    let distance: Double
     let isMe: Bool
-    var equipmentType: EquipmentType = .rower
+
+    func progress(toward target: Double) -> Double {
+        guard target > 0 else { return 0 }
+        return distance / target
+    }
+}
+
+struct RacerView: View {
+    let racer: RacerDisplayInfo
+    let xPosition: CGFloat
+    let laneHeight: CGFloat
+    let laneIndex: Int
+
+    private var equipmentColor: Color {
+        switch racer.equipmentType {
+        case .rower: return .cyan
+        case .bike: return .orange
+        case .ski: return .purple
+        }
+    }
 
     var body: some View {
-        HStack(spacing: 4) {
-            Image(systemName: equipmentType.iconName)
-                .font(isMe ? .title2 : .body)
-                .foregroundColor(color)
-                .scaleEffect(x: -1, y: 1)
+        let yPosition = (CGFloat(laneIndex) + 0.5) * laneHeight
 
-            Text(name)
-                .font(isMe ? .caption.bold() : .caption2)
-                .foregroundColor(color)
+        HStack(spacing: 6) {
+            // Equipment icon in circle
+            ZStack {
+                Circle()
+                    .fill(racer.isMe ? equipmentColor : Color.white.opacity(0.9))
+                    .frame(width: 32, height: 32)
+
+                Image(systemName: racer.equipmentType.iconName)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(racer.isMe ? .white : equipmentColor)
+            }
+
+            // Name tag
+            Text(racer.isMe ? "YOU" : String(racer.displayName.prefix(5)))
+                .font(.system(size: 11, weight: racer.isMe ? .bold : .medium))
+                .foregroundColor(.white)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 3)
+                .background(racer.isMe ? equipmentColor : Color.gray.opacity(0.7))
+                .cornerRadius(4)
         }
-        .position(x: position, y: yPosition)
+        .position(x: xPosition, y: yPosition)
     }
 }
 
