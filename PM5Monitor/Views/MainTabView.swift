@@ -5,22 +5,32 @@ struct MainTabView: View {
     @StateObject private var lobbyService = LobbyService()
     @StateObject private var raceService = RaceService()
     @StateObject private var bleManager = BLEManager()
+    @ObservedObject private var networkService = NetworkService.shared
 
     @State private var selectedTab = 0
 
     var body: some View {
         Group {
             if authService.isAuthenticated {
-                // Check if in active race
-                if raceService.raceState.isRacing {
+                // Check if in active race (from server)
+                if let currentRace = networkService.currentRace, currentRace.status == "active" {
                     RaceView(
                         raceService: raceService,
-                        bleManager: bleManager
+                        bleManager: bleManager,
+                        networkService: networkService,
+                        currentUserId: authService.userProfile?.oderId ?? ""
+                    )
+                } else if raceService.raceState.isRacing {
+                    RaceView(
+                        raceService: raceService,
+                        bleManager: bleManager,
+                        networkService: networkService,
+                        currentUserId: authService.userProfile?.oderId ?? ""
                     )
                 } else {
                     TabView(selection: $selectedTab) {
                         // Race / Training
-                        TrainingView(bleManager: bleManager, authService: authService)
+                        TrainingView(bleManager: bleManager, authService: authService, networkService: networkService)
                             .tabItem {
                                 Label("Race", systemImage: "figure.rowing")
                             }
@@ -66,6 +76,7 @@ struct MainTabView: View {
 struct TrainingView: View {
     @ObservedObject var bleManager: BLEManager
     @ObservedObject var authService: AuthService
+    @ObservedObject var networkService: NetworkService
 
     var body: some View {
         NavigationStack {
@@ -79,15 +90,27 @@ struct TrainingView: View {
                         MetricsBar(metrics: bleManager.currentMetrics)
                             .padding(.top)
 
-                        // Race lane visualization
-                        TrainingLaneView(
-                            displayName: authService.userProfile?.displayName ?? "You",
-                            distance: bleManager.currentMetrics.distance,
-                            targetDistance: 2000
-                        )
-                        .frame(height: 80)
-                        .padding(.horizontal)
-                        .padding(.top, 8)
+                        // Race lane visualization - show multiple lanes if in a race
+                        if let currentRace = networkService.currentRace {
+                            MultiRacerLaneView(
+                                participants: currentRace.participants,
+                                currentUserId: authService.userProfile?.oderId ?? "",
+                                currentUserDistance: bleManager.currentMetrics.distance,
+                                targetDistance: Double(currentRace.targetDistance)
+                            )
+                            .frame(height: CGFloat(max(2, currentRace.participants.count)) * 50)
+                            .padding(.horizontal)
+                            .padding(.top, 8)
+                        } else {
+                            TrainingLaneView(
+                                displayName: authService.userProfile?.displayName ?? "You",
+                                distance: bleManager.currentMetrics.distance,
+                                targetDistance: 2000
+                            )
+                            .frame(height: 80)
+                            .padding(.horizontal)
+                            .padding(.top, 8)
+                        }
 
                         Spacer()
 
@@ -212,7 +235,160 @@ struct MetricPill: View {
     }
 }
 
-// MARK: - Training Lane View (ErgRace Style)
+// MARK: - Multi-Racer Lane View (ErgRace Style)
+
+struct MultiRacerLaneView: View {
+    let participants: [ServerRaceParticipant]
+    let currentUserId: String
+    let currentUserDistance: Double
+    let targetDistance: Double
+
+    private let laneColors: [Color] = [
+        Color(red: 0.1, green: 0.3, blue: 0.5),
+        Color(red: 0.15, green: 0.35, blue: 0.55),
+    ]
+
+    var body: some View {
+        GeometryReader { geometry in
+            let laneCount = max(2, participants.count)
+            let laneHeight = geometry.size.height / CGFloat(laneCount)
+
+            ZStack {
+                // Lane backgrounds
+                VStack(spacing: 0) {
+                    ForEach(0..<laneCount, id: \.self) { index in
+                        Rectangle()
+                            .fill(laneColors[index % 2])
+                            .frame(height: laneHeight)
+                    }
+                }
+
+                // Distance markers
+                ForEach(distanceMarkers, id: \.self) { marker in
+                    let xPos = calculateXPosition(progress: marker / targetDistance, width: geometry.size.width)
+                    Rectangle()
+                        .fill(Color.white.opacity(0.2))
+                        .frame(width: 1, height: geometry.size.height)
+                        .position(x: xPos, y: geometry.size.height / 2)
+                }
+
+                // Lane dividers
+                ForEach(1..<laneCount, id: \.self) { index in
+                    Rectangle()
+                        .fill(Color.white.opacity(0.3))
+                        .frame(width: geometry.size.width, height: 1)
+                        .position(x: geometry.size.width / 2, y: CGFloat(index) * laneHeight)
+                }
+
+                // Start line
+                Rectangle()
+                    .fill(Color.green.opacity(0.8))
+                    .frame(width: 3, height: geometry.size.height)
+                    .position(x: 35, y: geometry.size.height / 2)
+
+                // Finish line (checkered)
+                HStack(spacing: 0) {
+                    ForEach(0..<2, id: \.self) { col in
+                        VStack(spacing: 0) {
+                            ForEach(0..<(laneCount * 2), id: \.self) { row in
+                                Rectangle()
+                                    .fill((row + col) % 2 == 0 ? Color.white : Color.black)
+                                    .frame(width: 6, height: laneHeight / 2)
+                            }
+                        }
+                    }
+                }
+                .position(x: geometry.size.width - 18, y: geometry.size.height / 2)
+
+                // All racers
+                ForEach(Array(sortedParticipants.enumerated()), id: \.element.id) { index, participant in
+                    let isMe = participant.oderId == currentUserId
+                    let distance = isMe ? currentUserDistance : participant.distance
+                    let progress = min(1.0, distance / targetDistance)
+                    let xPosition = calculateXPosition(progress: progress, width: geometry.size.width)
+                    let yPosition = (CGFloat(index) + 0.5) * laneHeight
+
+                    RacerIconView(
+                        displayName: participant.displayName,
+                        equipmentType: participant.equipment,
+                        isMe: isMe,
+                        xPosition: xPosition,
+                        yPosition: yPosition
+                    )
+                }
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    private var sortedParticipants: [ServerRaceParticipant] {
+        // Sort by distance (leader first), but keep current user visible
+        participants.sorted { p1, p2 in
+            let d1 = p1.oderId == currentUserId ? currentUserDistance : p1.distance
+            let d2 = p2.oderId == currentUserId ? currentUserDistance : p2.distance
+            return d1 > d2
+        }
+    }
+
+    private var distanceMarkers: [Double] {
+        let interval: Double = targetDistance <= 1000 ? 250 : 500
+        var markers: [Double] = []
+        var current = interval
+        while current < targetDistance {
+            markers.append(current)
+            current += interval
+        }
+        return markers
+    }
+
+    private func calculateXPosition(progress: Double, width: CGFloat) -> CGFloat {
+        let trackStart: CGFloat = 40
+        let trackEnd = width - 25
+        let trackLength = trackEnd - trackStart
+        return trackStart + (trackLength * CGFloat(progress))
+    }
+}
+
+struct RacerIconView: View {
+    let displayName: String
+    let equipmentType: EquipmentType
+    let isMe: Bool
+    let xPosition: CGFloat
+    let yPosition: CGFloat
+
+    private var equipmentColor: Color {
+        switch equipmentType {
+        case .rower: return .cyan
+        case .bike: return .orange
+        case .ski: return .purple
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ZStack {
+                Circle()
+                    .fill(isMe ? equipmentColor : Color.white.opacity(0.9))
+                    .frame(width: 28, height: 28)
+
+                Image(systemName: equipmentType.iconName)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(isMe ? .white : equipmentColor)
+            }
+
+            Text(isMe ? "YOU" : String(displayName.prefix(5)).uppercased())
+                .font(.system(size: 9, weight: isMe ? .bold : .medium))
+                .foregroundColor(.white)
+                .padding(.horizontal, 4)
+                .padding(.vertical, 2)
+                .background(isMe ? equipmentColor : Color.gray.opacity(0.7))
+                .cornerRadius(3)
+        }
+        .position(x: xPosition, y: yPosition)
+    }
+}
+
+// MARK: - Training Lane View (ErgRace Style - Solo)
 
 struct TrainingLaneView: View {
     let displayName: String

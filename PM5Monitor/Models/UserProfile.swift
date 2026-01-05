@@ -57,6 +57,11 @@ struct UserProfile: Codable, Identifiable {
         walletAddress != nil && !walletAddress!.isEmpty
     }
 
+    /// Alias for id used by the server
+    var oderId: String {
+        id
+    }
+
     /// Total earnings formatted as ETH
     var formattedEarnings: String {
         guard let wei = Double(totalEarnings) else { return "0 ETH" }

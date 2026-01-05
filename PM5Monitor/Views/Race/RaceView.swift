@@ -3,8 +3,18 @@ import SwiftUI
 struct RaceView: View {
     @ObservedObject var raceService: RaceService
     @ObservedObject var bleManager: BLEManager
+    @ObservedObject var networkService: NetworkService
+    var currentUserId: String
 
     @State private var previousMetrics: RowingMetrics?
+
+    private var targetDistance: Int {
+        networkService.currentRace?.targetDistance ?? raceService.currentRace?.targetDistance ?? 2000
+    }
+
+    private var serverParticipants: [ServerRaceParticipant] {
+        networkService.currentRace?.participants ?? []
+    }
 
     var body: some View {
         ZStack {
@@ -14,24 +24,35 @@ struct RaceView: View {
             VStack(spacing: 0) {
                 // Race header with distance info
                 RaceHeaderView(
-                    targetDistance: raceService.currentRace?.targetDistance ?? 2000,
+                    targetDistance: targetDistance,
                     currentDistance: bleManager.currentMetrics.distance
                 )
 
-                // Race track visualization
-                RaceTrackView(
-                    participants: raceService.participants,
-                    myProgress: raceService.myProgress,
-                    targetDistance: Double(raceService.currentRace?.targetDistance ?? 2000),
-                    myEquipmentType: raceService.myEquipmentType
-                )
-                .frame(height: 180)
-                .padding(.vertical, 8)
+                // Race track visualization - use server participants if available
+                if !serverParticipants.isEmpty {
+                    MultiRacerLaneView(
+                        participants: serverParticipants,
+                        currentUserId: currentUserId,
+                        currentUserDistance: bleManager.currentMetrics.distance,
+                        targetDistance: Double(targetDistance)
+                    )
+                    .frame(height: CGFloat(max(2, serverParticipants.count)) * 45)
+                    .padding(.vertical, 8)
+                } else {
+                    RaceTrackView(
+                        participants: raceService.participants,
+                        myProgress: raceService.myProgress,
+                        targetDistance: Double(targetDistance),
+                        myEquipmentType: raceService.myEquipmentType
+                    )
+                    .frame(height: 180)
+                    .padding(.vertical, 8)
+                }
 
                 // Main metrics display
                 MainRaceMetrics(
                     metrics: bleManager.currentMetrics,
-                    targetDistance: Double(raceService.currentRace?.targetDistance ?? 2000)
+                    targetDistance: Double(targetDistance)
                 )
 
                 Spacer()
@@ -59,7 +80,9 @@ struct RaceView: View {
     }
 
     private func sendUpdate(metrics: RowingMetrics) {
-        guard raceService.raceState.isRacing else { return }
+        // Allow updates if in local race state OR if there's an active server race
+        let isInRace = raceService.raceState.isRacing || networkService.currentRace?.status == "active"
+        guard isInRace else { return }
 
         guard raceService.validateMetrics(metrics, previous: previousMetrics) else {
             return
@@ -68,10 +91,22 @@ struct RaceView: View {
         previousMetrics = metrics
 
         Task {
+            // Send to local race service
             try? await raceService.sendUpdate(
-                participantId: "current-user",
+                participantId: currentUserId,
                 metrics: metrics
             )
+
+            // Send to network server for real-time sync with other racers
+            if let raceId = networkService.currentRace?.id {
+                await networkService.sendRaceUpdate(
+                    raceId: raceId,
+                    oderId: currentUserId,
+                    distance: metrics.distance,
+                    pace: metrics.pace,
+                    watts: metrics.watts
+                )
+            }
         }
     }
 }
@@ -529,6 +564,8 @@ struct RaceFinishedOverlay: View {
 #Preview {
     RaceView(
         raceService: RaceService(),
-        bleManager: BLEManager()
+        bleManager: BLEManager(),
+        networkService: NetworkService.shared,
+        currentUserId: "preview-user"
     )
 }
