@@ -86,9 +86,7 @@ struct TrainingView: View {
                 if bleManager.isConnected {
                     // Main training display
                     VStack(spacing: 0) {
-                        // Top metrics bar
-                        MetricsBar(metrics: bleManager.currentMetrics)
-                            .padding(.top)
+                        Spacer()
 
                         // Race lane visualization - show multiple lanes if in a race
                         if let currentRace = networkService.currentRace {
@@ -98,56 +96,50 @@ struct TrainingView: View {
                                 currentUserDistance: bleManager.currentMetrics.distance,
                                 targetDistance: Double(currentRace.targetDistance)
                             )
-                            .frame(height: CGFloat(max(2, currentRace.participants.count)) * 50)
+                            .frame(height: CGFloat(max(2, currentRace.participants.count)) * 60)
                             .padding(.horizontal)
-                            .padding(.top, 8)
                         } else {
                             TrainingLaneView(
                                 displayName: authService.userProfile?.displayName ?? "You",
                                 distance: bleManager.currentMetrics.distance,
                                 targetDistance: 2000
                             )
-                            .frame(height: 80)
+                            .frame(height: 100)
                             .padding(.horizontal)
-                            .padding(.top, 8)
                         }
 
                         Spacer()
 
-                        // Center: Large watts display
-                        VStack(spacing: 8) {
-                            Text("\(bleManager.currentWatts)")
-                                .font(.system(size: 120, weight: .bold, design: .rounded))
-                                .foregroundColor(.white)
-
-                            Text("WATTS")
-                                .font(.title3.weight(.semibold))
-                                .foregroundColor(.gray)
-                        }
-
-                        Spacer()
-
-                        // Bottom: Force curve and additional metrics
-                        HStack(alignment: .bottom, spacing: 24) {
-                            // Force curve
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("FORCE CURVE")
+                        // Minimal bottom metrics: Distance, Pace, Watts
+                        HStack(spacing: 32) {
+                            VStack(spacing: 4) {
+                                Text(bleManager.currentMetrics.formattedDistance)
+                                    .font(.system(size: 24, weight: .bold, design: .monospaced))
+                                    .foregroundColor(.white)
+                                Text("DISTANCE")
                                     .font(.caption2)
                                     .foregroundColor(.gray)
-                                ForceCurveView(forceData: bleManager.forceHistory)
-                                    .frame(width: 160, height: 80)
                             }
 
-                            Spacer()
+                            VStack(spacing: 4) {
+                                Text(bleManager.currentMetrics.formattedPace)
+                                    .font(.system(size: 24, weight: .bold, design: .monospaced))
+                                    .foregroundColor(.cyan)
+                                Text("PACE")
+                                    .font(.caption2)
+                                    .foregroundColor(.gray)
+                            }
 
-                            // Additional metrics
-                            VStack(alignment: .trailing, spacing: 12) {
-                                MetricDisplay(title: "PACE", value: bleManager.currentMetrics.formattedPace, unit: "/500m")
-                                MetricDisplay(title: "S/M", value: "\(bleManager.currentMetrics.strokeRate)", unit: "")
+                            VStack(spacing: 4) {
+                                Text("\(bleManager.currentWatts)")
+                                    .font(.system(size: 24, weight: .bold, design: .monospaced))
+                                    .foregroundColor(.orange)
+                                Text("WATTS")
+                                    .font(.caption2)
+                                    .foregroundColor(.gray)
                             }
                         }
-                        .padding()
-                        .padding(.bottom, 20)
+                        .padding(.bottom, 40)
                     }
                 } else {
                     // Connection overlay
