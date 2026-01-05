@@ -19,21 +19,21 @@ struct MainTabView: View {
                     )
                 } else {
                     TabView(selection: $selectedTab) {
-                        // Home / Training
-                        TrainingView(bleManager: bleManager)
+                        // Race / Training
+                        TrainingView(bleManager: bleManager, authService: authService)
                             .tabItem {
-                                Label("Train", systemImage: "figure.rowing")
+                                Label("Race", systemImage: "figure.rowing")
                             }
                             .tag(0)
 
-                        // Race Lobbies
+                        // Lobby
                         LobbyListView(
                             lobbyService: lobbyService,
                             raceService: raceService,
                             authService: authService
                         )
                         .tabItem {
-                            Label("Race", systemImage: "flag.checkered")
+                            Label("Lobby", systemImage: "flag.checkered")
                         }
                         .tag(1)
 
@@ -65,6 +65,7 @@ struct MainTabView: View {
 
 struct TrainingView: View {
     @ObservedObject var bleManager: BLEManager
+    @ObservedObject var authService: AuthService
 
     var body: some View {
         NavigationStack {
@@ -77,6 +78,16 @@ struct TrainingView: View {
                         // Top metrics bar
                         MetricsBar(metrics: bleManager.currentMetrics)
                             .padding(.top)
+
+                        // Race lane visualization
+                        TrainingLaneView(
+                            displayName: authService.userProfile?.displayName ?? "You",
+                            distance: bleManager.currentMetrics.distance,
+                            targetDistance: 2000
+                        )
+                        .frame(height: 80)
+                        .padding(.horizontal)
+                        .padding(.top, 8)
 
                         Spacer()
 
@@ -120,7 +131,7 @@ struct TrainingView: View {
                     ConnectionOverlay(ble: bleManager)
                 }
             }
-            .navigationTitle("Training")
+            .navigationTitle("Race")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -198,6 +209,108 @@ struct MetricPill: View {
                 .foregroundColor(.primary)
         }
         .frame(minWidth: 60)
+    }
+}
+
+// MARK: - Training Lane View (ErgRace Style)
+
+struct TrainingLaneView: View {
+    let displayName: String
+    let distance: Double
+    let targetDistance: Double
+
+    private let laneColor = Color(red: 0.1, green: 0.3, blue: 0.5)
+
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack {
+                // Lane background
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(laneColor)
+
+                // Distance markers
+                ForEach(distanceMarkers, id: \.self) { marker in
+                    let xPos = calculateXPosition(progress: marker / targetDistance, width: geometry.size.width)
+
+                    VStack {
+                        Rectangle()
+                            .fill(Color.white.opacity(0.2))
+                            .frame(width: 1, height: geometry.size.height)
+                    }
+                    .position(x: xPos, y: geometry.size.height / 2)
+                }
+
+                // Start line
+                Rectangle()
+                    .fill(Color.green.opacity(0.8))
+                    .frame(width: 3, height: geometry.size.height)
+                    .position(x: 35, y: geometry.size.height / 2)
+
+                // Finish line (checkered)
+                HStack(spacing: 0) {
+                    ForEach(0..<2, id: \.self) { col in
+                        VStack(spacing: 0) {
+                            ForEach(0..<4, id: \.self) { row in
+                                Rectangle()
+                                    .fill((row + col) % 2 == 0 ? Color.white : Color.black)
+                                    .frame(width: 6, height: geometry.size.height / 4)
+                            }
+                        }
+                    }
+                }
+                .position(x: geometry.size.width - 18, y: geometry.size.height / 2)
+
+                // User racer icon
+                let progress = min(1.0, distance / targetDistance)
+                let xPosition = calculateXPosition(progress: progress, width: geometry.size.width)
+
+                HStack(spacing: 6) {
+                    ZStack {
+                        Circle()
+                            .fill(Color.cyan)
+                            .frame(width: 32, height: 32)
+
+                        Image(systemName: "figure.rowing")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.white)
+                    }
+
+                    Text(displayName.prefix(8).uppercased())
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(Color.cyan)
+                        .cornerRadius(4)
+                }
+                .position(x: xPosition, y: geometry.size.height / 2)
+
+                // Distance label
+                Text("\(Int(distance))m / \(Int(targetDistance))m")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundColor(.white.opacity(0.7))
+                    .position(x: geometry.size.width - 60, y: 12)
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    private var distanceMarkers: [Double] {
+        let interval: Double = targetDistance <= 1000 ? 250 : 500
+        var markers: [Double] = []
+        var current = interval
+        while current < targetDistance {
+            markers.append(current)
+            current += interval
+        }
+        return markers
+    }
+
+    private func calculateXPosition(progress: Double, width: CGFloat) -> CGFloat {
+        let trackStart: CGFloat = 40
+        let trackEnd = width - 25
+        let trackLength = trackEnd - trackStart
+        return trackStart + (trackLength * CGFloat(progress))
     }
 }
 
