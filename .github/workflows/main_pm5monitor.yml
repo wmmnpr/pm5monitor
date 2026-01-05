@@ -27,6 +27,7 @@ jobs:
         run: ls -la && ls -la server
 
       - name: npm install, build, and test
+        working-directory: server
         run: |
           npm install
           npm run build --if-present
@@ -65,5 +66,5 @@ jobs:
           app-name: 'pm5monitor'
           slot-name: 'Production'
           package: ./server
-        
+          
         
