@@ -31,6 +31,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		3DFA068C2F0C802000873A73 /* PM5Monitor.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PM5Monitor.entitlements; sourceTree = "<group>"; };
 		A10002 /* PM5MonitorApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PM5MonitorApp.swift; sourceTree = "<group>"; };
 		A10004 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		A10006 /* BLEManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BLEManager.swift; sourceTree = "<group>"; };
@@ -78,6 +79,7 @@
 		A10041 /* PM5Monitor */ = {
 			isa = PBXGroup;
 			children = (
+				3DFA068C2F0C802000873A73 /* PM5Monitor.entitlements */,
 				A10043 /* Config */,
 				A10044 /* Models */,
 				A10045 /* Services */,
@@ -303,22 +305,27 @@
 		A10082 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = PM5Monitor/PM5Monitor.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = CGJD95J3X3;
+				DEVELOPMENT_TEAM = NB28FTJ98Y;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = PM5Monitor/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "PM5 Racing";
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "PM5 Monitor needs Bluetooth to connect to your Concept2 PM5 and display watts.";
+				INFOPLIST_KEY_NSBluetoothPeripheralUsageDescription = "PM5 Monitor needs Bluetooth to connect to your Concept2 PM5 and display watts.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "PM5 Monitor uses the camera to track your body position while cycling.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UIRequiredDeviceCapabilities = "bluetooth-le arm64";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.example.PM5Monitor;
+				PRODUCT_BUNDLE_IDENTIFIER = com.wmmnpr.PM5Monitor;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -328,22 +335,27 @@
 		A10083 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = PM5Monitor/PM5Monitor.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = CGJD95J3X3;
+				DEVELOPMENT_TEAM = NB28FTJ98Y;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = PM5Monitor/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "PM5 Racing";
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "PM5 Monitor needs Bluetooth to connect to your Concept2 PM5 and display watts.";
+				INFOPLIST_KEY_NSBluetoothPeripheralUsageDescription = "PM5 Monitor needs Bluetooth to connect to your Concept2 PM5 and display watts.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "PM5 Monitor uses the camera to track your body position while cycling.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UIRequiredDeviceCapabilities = "bluetooth-le arm64";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.example.PM5Monitor;
+				PRODUCT_BUNDLE_IDENTIFIER = com.wmmnpr.PM5Monitor;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";

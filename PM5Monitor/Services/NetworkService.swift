@@ -28,7 +28,7 @@ class NetworkService: ObservableObject {
     /// Local: "http://localhost:3000"
     /// ngrok: "https://xxxx-xx-xx-xx-xx.ngrok.io"
     /// Production: "https://your-server.railway.app"
-    static let serverURL = "http://localhost:3000"
+    static let serverURL = "https://pm5monitor-bfcjgxdwh3d7azgg.eastus-01.azurewebsites.net"
 
     // MARK: - Singleton
 

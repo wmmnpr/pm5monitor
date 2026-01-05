@@ -46,7 +46,8 @@ class WalletService: ObservableObject {
     private let projectId = "YOUR_PROJECT_ID_HERE"
 
     /// Ethereum RPC URL (Mainnet or Sepolia testnet)
-    private let rpcUrl = "https://eth-mainnet.g.alchemy.com/v2/YOUR_API_KEY"
+    //private let rpcUrl = "https://eth-mainnet.g.alchemy.com/v2/YOUR_API_KEY"
+    private let rpcUrl = "https://eth-sepolia.g.alchemy.com/v2/XCwF9CQG9SzOFJafVWgIe"
     // For testnet: "https://eth-sepolia.g.alchemy.com/v2/YOUR_API_KEY"
 
     /// Race Escrow Contract Address
