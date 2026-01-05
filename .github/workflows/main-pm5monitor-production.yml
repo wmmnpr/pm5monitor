@@ -25,7 +25,7 @@ jobs:
 
       - name: Debug directories
         run: ls -la && ls -la server
-        
+
       - name: npm install, build, and test
         run: |
           npm install
@@ -64,5 +64,5 @@ jobs:
         with:
           app-name: 'pm5monitor'
           slot-name: 'Production'
-          package: .
+          package: ./server
           
