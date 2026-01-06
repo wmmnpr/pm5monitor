@@ -29,7 +29,7 @@ enum EquipmentType: String, Codable, CaseIterable, Identifiable {
     /// SF Symbol icon for this equipment
     var iconName: String {
         switch self {
-        case .rower: return "figure.rowing"
+        case .rower: return "oar.2.crossed"  // Available in iOS 16+
         case .bike: return "figure.outdoor.cycle"
         case .ski: return "figure.skiing.crosscountry"
         }

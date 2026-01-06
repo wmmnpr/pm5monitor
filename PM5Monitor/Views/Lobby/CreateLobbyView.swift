@@ -6,7 +6,7 @@ struct CreateLobbyView: View {
     @Binding var isPresented: Bool
 
     @State private var selectedDistance: RaceDistance = .twoK
-    @State private var selectedEntryFee: EntryFeePreset = .eth01
+    @State private var selectedEntryFee: EntryFeePreset = .free
     @State private var selectedPayoutMode: PayoutMode = .winnerTakesAll
     @State private var maxParticipants: Int = 6
     @State private var isCreating = false

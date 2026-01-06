@@ -155,6 +155,7 @@ enum ParticipantStatus: String, Codable {
 // MARK: - Entry Fee Presets (ETH)
 
 enum EntryFeePreset: CaseIterable, Identifiable {
+    case free    // 0 ETH (for testing)
     case eth001  // 0.001 ETH
     case eth005  // 0.005 ETH
     case eth01   // 0.01 ETH
@@ -167,6 +168,7 @@ enum EntryFeePreset: CaseIterable, Identifiable {
     /// Entry fee in ETH
     var ethAmount: Double {
         switch self {
+        case .free: return 0.0
         case .eth001: return 0.001
         case .eth005: return 0.005
         case .eth01: return 0.01
@@ -184,6 +186,7 @@ enum EntryFeePreset: CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
+        case .free: return "Free"
         case .eth001: return "0.001 ETH"
         case .eth005: return "0.005 ETH"
         case .eth01: return "0.01 ETH"
@@ -195,6 +198,9 @@ enum EntryFeePreset: CaseIterable, Identifiable {
 
     /// Approximate USD value (for display only, actual price varies)
     var approximateUSD: String {
+        if ethAmount == 0 {
+            return "For testing"
+        }
         // Assuming ~$2000/ETH for display purposes
         let usd = ethAmount * 2000
         if usd < 10 {

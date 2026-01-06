@@ -12,8 +12,9 @@ struct MainTabView: View {
     var body: some View {
         Group {
             if authService.isAuthenticated {
-                // Check if in active race (from server)
-                if let currentRace = networkService.currentRace, currentRace.status == "active" {
+                // Check if in active race (from server) - status can be "active" or "racing"
+                if let currentRace = networkService.currentRace,
+                   (currentRace.status == "active" || currentRace.status == "racing") {
                     RaceView(
                         raceService: raceService,
                         bleManager: bleManager,
