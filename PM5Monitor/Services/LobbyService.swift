@@ -43,8 +43,10 @@ class LobbyService: ObservableObject {
             .sink { [weak self] serverLobby in
                 guard let self = self else { return }
                 if let serverLobby = serverLobby {
+                    print("LobbyService: currentLobby updated with \(serverLobby.participants.count) participants")
                     self.currentLobby = self.convertServerLobby(serverLobby)
                     self.participants = serverLobby.participants.map { self.convertServerParticipant($0) }
+                    print("LobbyService: participants updated to \(self.participants.count)")
                 }
             }
             .store(in: &cancellables)
@@ -210,15 +212,21 @@ class LobbyService: ObservableObject {
     // MARK: - Start Race
 
     func startRace() async throws -> String {
+        print("LobbyService.startRace() called")
         guard let lobby = currentLobby else {
+            print("LobbyService.startRace: ERROR - not in lobby")
             throw LobbyError.notInLobby
         }
 
+        print("LobbyService.startRace: lobby=\(lobby.id), canStart=\(lobby.canStart), status=\(lobby.status), participants=\(lobby.participantCount)")
         guard lobby.canStart else {
+            print("LobbyService.startRace: ERROR - can't start")
             throw LobbyError.notEnoughParticipants
         }
 
+        print("LobbyService.startRace: calling networkService.startRace")
         let race = try await networkService.startRace(lobbyId: lobby.id)
+        print("LobbyService.startRace: SUCCESS - raceId=\(race.id)")
         return race.id
     }
 

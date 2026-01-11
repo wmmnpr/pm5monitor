@@ -118,7 +118,7 @@ struct LobbyDetailView: View {
         }
 
         let allReady = serverLobby.participants.allSatisfy { p in
-            p.status == "ready" || p.isBot == true
+            p.status == "ready" || (p.isBot ?? false)
         }
 
         print("  - All ready: \(allReady)")
@@ -131,11 +131,14 @@ struct LobbyDetailView: View {
     }
 
     private func startRace() {
+        print("startRace() called")
         Task {
             do {
-                _ = try await lobbyService.startRace()
+                print("startRace: calling lobbyService.startRace()")
+                let raceId = try await lobbyService.startRace()
+                print("startRace: SUCCESS - raceId = \(raceId)")
             } catch {
-                print("Failed to start race: \(error)")
+                print("startRace: FAILED - \(error)")
                 await MainActor.run {
                     isStartingRace = false
                 }

@@ -248,6 +248,7 @@ class NetworkService: ObservableObject {
     }
 
     private func handleLobbyUpdated(data: [Any]) {
+        print("NetworkService: Received lobbyUpdated event")
         guard let lobbyData = data.first as? [String: Any] else {
             print("NetworkService: Failed to parse lobbyUpdated")
             return
@@ -259,8 +260,14 @@ class NetworkService: ObservableObject {
             decoder.dateDecodingStrategy = .iso8601
             let lobby = try decoder.decode(ServerLobby.self, from: jsonData)
 
+            print("NetworkService: lobbyUpdated for lobby \(lobby.id) with \(lobby.participants.count) participants")
+            for p in lobby.participants {
+                print("  - \(p.displayName): status=\(p.status), isBot=\(p.isBot ?? false)")
+            }
+
             // Update currentLobby if this is our lobby
             if currentLobby?.id == lobby.id {
+                print("NetworkService: Updating currentLobby")
                 currentLobby = lobby
             }
 
