@@ -282,6 +282,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('getLobbies', () => {
+    console.log("ws Client requested lobby list");
     socket.emit('lobbyList', getLobbyList());
   });
 
@@ -407,6 +408,7 @@ app.get('/', (req, res) => {
 });
 
 app.get('/lobbies', (req, res) => {
+  console.log("rest GET /lobbies called");
   res.json(getLobbyList());
 });
 

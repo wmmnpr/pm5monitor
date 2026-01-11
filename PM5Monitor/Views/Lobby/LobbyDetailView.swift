@@ -9,6 +9,7 @@ struct LobbyDetailView: View {
     @State private var isJoining = false
     @State private var hasJoined = false
     @State private var isReady = false
+    @State private var isStartingRace = false
     @State private var showWalletRequired = false
     @State private var showInsufficientBalance = false
     @State private var showAddBot = false
@@ -79,6 +80,67 @@ struct LobbyDetailView: View {
                 lobbyService.unsubscribe()
             }
         }
+        .onReceive(lobbyService.$participants) { participants in
+            checkAndStartRace(participants: participants)
+        }
+    }
+
+    private func checkAndStartRace(participants: [LobbyParticipant]) {
+        print("checkAndStartRace called - participants: \(participants.count)")
+
+        // Prevent multiple start attempts
+        guard !isStartingRace else {
+            print("  - Already starting race, skipping")
+            return
+        }
+
+        // Only proceed if we're in the lobby and ready
+        guard hasJoined, isReady else {
+            print("  - Not joined (\(hasJoined)) or not ready (\(isReady))")
+            return
+        }
+
+        // Need at least minParticipants
+        guard participants.count >= lobby.minParticipants else {
+            print("  - Not enough participants: \(participants.count) < \(lobby.minParticipants)")
+            return
+        }
+
+        // Use server data to check if all are ready (bots count as ready)
+        guard let serverLobby = NetworkService.shared.currentLobby else {
+            print("  - No server lobby data")
+            return
+        }
+
+        print("  - Server lobby participants:")
+        for p in serverLobby.participants {
+            print("    - \(p.displayName): status=\(p.status), isBot=\(p.isBot ?? false)")
+        }
+
+        let allReady = serverLobby.participants.allSatisfy { p in
+            p.status == "ready" || p.isBot == true
+        }
+
+        print("  - All ready: \(allReady)")
+
+        if allReady {
+            print("  - Starting race!")
+            isStartingRace = true
+            startRace()
+        }
+    }
+
+    private func startRace() {
+        Task {
+            do {
+                _ = try await lobbyService.startRace()
+            } catch {
+                print("Failed to start race: \(error)")
+                await MainActor.run {
+                    isStartingRace = false
+                }
+            }
+        }
     }
 
     private func joinLobby() {
@@ -135,6 +197,14 @@ struct LobbyDetailView: View {
             try? await lobbyService.setReady(userId: userId)
             await MainActor.run {
                 isReady = true
+            }
+
+            // Wait a moment for server to process and send lobbyUpdated
+            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+
+            // Check if we can start the race now
+            await MainActor.run {
+                checkAndStartRace(participants: lobbyService.participants)
             }
         }
     }

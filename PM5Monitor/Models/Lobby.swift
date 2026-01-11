@@ -129,7 +129,7 @@ struct SkillRange: Codable {
 }
 
 /// A participant in a lobby
-struct LobbyParticipant: Codable, Identifiable {
+struct LobbyParticipant: Codable, Identifiable, Equatable {
     let id: String
     let userId: String
     var displayName: String
