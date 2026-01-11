@@ -12,3 +12,6 @@ Pods/
 # Swift Package Manager
 .build/
 .swiftpm/
+
+# server
+server/node_modules/

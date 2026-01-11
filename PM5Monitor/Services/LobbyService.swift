@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 
 @MainActor
 class LobbyService: ObservableObject {
@@ -15,11 +16,38 @@ class LobbyService: ObservableObject {
 
     private let networkService = NetworkService.shared
     private var pollingTimer: Timer?
+    private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Init
 
     init() {
         networkService.connect()
+        setupObservers()
+    }
+
+    // MARK: - Observers
+
+    private func setupObservers() {
+        // Observe lobby list changes from NetworkService (real-time via Socket.IO)
+        networkService.$lobbies
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] serverLobbies in
+                guard let self = self else { return }
+                self.availableLobbies = serverLobbies.map { self.convertServerLobby($0) }
+            }
+            .store(in: &cancellables)
+
+        // Observe current lobby changes (real-time via Socket.IO)
+        networkService.$currentLobby
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] serverLobby in
+                guard let self = self else { return }
+                if let serverLobby = serverLobby {
+                    self.currentLobby = self.convertServerLobby(serverLobby)
+                    self.participants = serverLobby.participants.map { self.convertServerParticipant($0) }
+                }
+            }
+            .store(in: &cancellables)
     }
 
     // MARK: - Lobby Creation
@@ -70,13 +98,17 @@ class LobbyService: ObservableObject {
     }
 
     func subscribeToLobbies() {
-        // Start polling for updates
-        pollingTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                await self?.fetchAvailableLobbies()
+        // Socket.IO handles real-time updates via observers
+        // Only poll as fallback if socket is not connected
+        if !networkService.isConnected {
+            pollingTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
+                Task { @MainActor in
+                    await self?.fetchAvailableLobbies()
+                }
             }
         }
 
+        // Initial fetch
         Task {
             await fetchAvailableLobbies()
         }
@@ -159,13 +191,17 @@ class LobbyService: ObservableObject {
     // MARK: - Subscribe to Participants
 
     func subscribeToParticipants(lobbyId: String) {
-        // Poll for participant updates
-        pollingTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                guard let self = self else { return }
-                if let serverLobby = await self.networkService.fetchLobby(id: lobbyId) {
-                    self.currentLobby = self.convertServerLobby(serverLobby)
-                    self.participants = serverLobby.participants.map { self.convertServerParticipant($0) }
+        // Socket.IO provides real-time updates via lobbyUpdated event
+        // NetworkService.currentLobby is automatically updated and observed
+        // Only use polling as fallback if socket not connected
+        if !networkService.isConnected {
+            pollingTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+                Task { @MainActor in
+                    guard let self = self else { return }
+                    if let serverLobby = await self.networkService.fetchLobby(id: lobbyId) {
+                        self.currentLobby = self.convertServerLobby(serverLobby)
+                        self.participants = serverLobby.participants.map { self.convertServerParticipant($0) }
+                    }
                 }
             }
         }

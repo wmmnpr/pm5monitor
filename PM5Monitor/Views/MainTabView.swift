@@ -69,6 +69,47 @@ struct MainTabView: View {
             }
         }
         .preferredColorScheme(.dark)
+        .onAppear {
+            setupNetworkCallbacks()
+        }
+    }
+
+    // MARK: - Socket.IO Callback Setup
+
+    private func setupNetworkCallbacks() {
+        // Handle countdown events from Socket.IO
+        networkService.onCountdown = { [weak raceService] seconds in
+            Task { @MainActor in
+                raceService?.countdown = seconds
+                if case .inLobby = raceService?.raceState {
+                    raceService?.raceState = .countdown(seconds: seconds)
+                } else if case .countdown = raceService?.raceState {
+                    raceService?.raceState = .countdown(seconds: seconds)
+                }
+            }
+        }
+
+        // Handle race started events from Socket.IO
+        networkService.onRaceStarted = { [weak raceService] _ in
+            Task { @MainActor in
+                raceService?.raceState = .racing
+            }
+        }
+
+        // Handle race completed events from Socket.IO
+        networkService.onRaceCompleted = { [weak raceService] race in
+            Task { @MainActor in
+                // Find user's position from the race participants
+                if let userId = authService.userProfile?.oderId,
+                   let participant = race.participants.first(where: { $0.oderId == userId }),
+                   let position = participant.position {
+                    raceService?.raceState = .finished(position: position)
+                } else {
+                    // Default to position 0 if not found
+                    raceService?.raceState = .finished(position: 0)
+                }
+            }
+        }
     }
 }
 
@@ -110,37 +151,6 @@ struct TrainingView: View {
                         }
 
                         Spacer()
-
-                        // Minimal bottom metrics: Distance, Pace, Watts
-                        HStack(spacing: 32) {
-                            VStack(spacing: 4) {
-                                Text(bleManager.currentMetrics.formattedDistance)
-                                    .font(.system(size: 24, weight: .bold, design: .monospaced))
-                                    .foregroundColor(.white)
-                                Text("DISTANCE")
-                                    .font(.caption2)
-                                    .foregroundColor(.gray)
-                            }
-
-                            VStack(spacing: 4) {
-                                Text(bleManager.currentMetrics.formattedPace)
-                                    .font(.system(size: 24, weight: .bold, design: .monospaced))
-                                    .foregroundColor(.cyan)
-                                Text("PACE")
-                                    .font(.caption2)
-                                    .foregroundColor(.gray)
-                            }
-
-                            VStack(spacing: 4) {
-                                Text("\(bleManager.currentWatts)")
-                                    .font(.system(size: 24, weight: .bold, design: .monospaced))
-                                    .foregroundColor(.orange)
-                                Text("WATTS")
-                                    .font(.caption2)
-                                    .foregroundColor(.gray)
-                            }
-                        }
-                        .padding(.bottom, 40)
                     }
                 } else {
                     // Connection overlay

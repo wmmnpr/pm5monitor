@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		3DD9C4072F13BD5400087738 /* SocketIO in Frameworks */ = {isa = PBXBuildFile; productRef = 3DD9C4062F13BD5400087738 /* SocketIO */; };
 		A10001 /* PM5MonitorApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002 /* PM5MonitorApp.swift */; };
 		A10003 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10004 /* ContentView.swift */; };
 		A10005 /* BLEManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10006 /* BLEManager.swift */; };
@@ -62,6 +63,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3DD9C4072F13BD5400087738 /* SocketIO in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -217,6 +219,9 @@
 				Base,
 			);
 			mainGroup = A10040;
+			packageReferences = (
+				3DD9C4052F13BD5400087738 /* XCRemoteSwiftPackageReference "socket" */,
+			);
 			productRefGroup = A10042 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -384,6 +389,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		3DD9C4052F13BD5400087738 /* XCRemoteSwiftPackageReference "socket" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/socketio/socket.io-client-swift";
+			requirement = {
+				branch = master;
+				kind = branch;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		3DD9C4062F13BD5400087738 /* SocketIO */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 3DD9C4052F13BD5400087738 /* XCRemoteSwiftPackageReference "socket" */;
+			productName = SocketIO;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = A10070 /* Project object */;
 }

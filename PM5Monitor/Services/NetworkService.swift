@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import SocketIO
 
 // MARK: - Network Configuration
 /*
@@ -16,6 +17,15 @@ import Combine
  3. Update serverURL below with your URL
 
  ============================================
+ SOCKET.IO SETUP
+ ============================================
+
+ Add the SocketIO-Client-Swift package:
+ 1. File > Add Package Dependencies
+ 2. URL: https://github.com/socketio/socket.io-client-swift
+ 3. Version: 16.1.0 or later
+
+ ============================================
  */
 
 /// Network service for real-time communication with the racing server
@@ -28,7 +38,9 @@ class NetworkService: ObservableObject {
     /// Local: "http://localhost:3000"
     /// ngrok: "https://xxxx-xx-xx-xx-xx.ngrok.io"
     /// Production: "https://your-server.railway.app"
-    static let serverURL = "https://pm5monitor-bfcjgxdwh3d7azgg.eastus-01.azurewebsites.net"
+    //static let serverURL = "https://pm5monitor-bfcjgxdwh3d7azgg.eastus-01.azurewebsites.net"
+    //static let serverURL = "http://localhost:3000"
+    static let serverURL = "https://bc1f33e92fa6.ngrok-free.app"
 
     // MARK: - Singleton
 
@@ -43,11 +55,16 @@ class NetworkService: ObservableObject {
     @Published var countdown: Int?
     @Published var error: NetworkError?
 
-    // MARK: - Private
+    // MARK: - Socket.IO
 
-    private var webSocketTask: URLSessionWebSocketTask?
-    private var pingTimer: Timer?
-    private var reconnectAttempts = 0
+    private var manager: SocketManager?
+    private var socket: SocketIOClient?
+    private var isSocketConnected = false
+    private var isManualDisconnect = false
+
+    // MARK: - Fallback Polling
+
+    private var pollingTimer: Timer?
     private let maxReconnectAttempts = 5
 
     // MARK: - Callbacks
@@ -61,35 +78,307 @@ class NetworkService: ObservableObject {
 
     private init() {}
 
+    // MARK: - Socket.IO Setup
+
+    private func setupSocket() {
+        guard manager == nil else { return }
+
+        guard let url = URL(string: Self.serverURL) else {
+            print("NetworkService: Invalid server URL")
+            return
+        }
+
+        manager = SocketManager(
+            socketURL: url,
+            config: [
+                .log(false),
+                .compress,
+                .forceWebsockets(true),
+                .reconnects(true),
+                .reconnectAttempts(maxReconnectAttempts),
+                .reconnectWait(2)
+            ]
+        )
+
+        socket = manager?.defaultSocket
+        setupSocketEventHandlers()
+    }
+
+    private func setupSocketEventHandlers() {
+        guard let socket = socket else { return }
+
+        // Connection events
+        socket.on(clientEvent: .connect) { [weak self] _, _ in
+            Task { @MainActor in
+                self?.handleConnect()
+            }
+        }
+
+        socket.on(clientEvent: .disconnect) { [weak self] data, _ in
+            Task { @MainActor in
+                self?.handleDisconnect(reason: data.first as? String)
+            }
+        }
+
+        socket.on(clientEvent: .error) { [weak self] data, _ in
+            Task { @MainActor in
+                self?.handleError(data: data)
+            }
+        }
+
+        socket.on(clientEvent: .reconnectAttempt) { data, _ in
+            let attempt = data.first as? Int ?? 0
+            print("NetworkService: Reconnect attempt \(attempt)")
+        }
+
+        // Server events - Lobby
+        socket.on("lobbyList") { [weak self] data, _ in
+            Task { @MainActor in
+                self?.handleLobbyList(data: data)
+            }
+        }
+
+        socket.on("lobbyCreated") { [weak self] data, _ in
+            Task { @MainActor in
+                self?.handleLobbyCreated(data: data)
+            }
+        }
+
+        socket.on("lobbyUpdated") { [weak self] data, _ in
+            Task { @MainActor in
+                self?.handleLobbyUpdated(data: data)
+            }
+        }
+
+        // Server events - Race
+        socket.on("countdown") { [weak self] data, _ in
+            Task { @MainActor in
+                self?.handleCountdown(data: data)
+            }
+        }
+
+        socket.on("raceStarted") { [weak self] data, _ in
+            Task { @MainActor in
+                self?.handleRaceStarted(data: data)
+            }
+        }
+
+        socket.on("raceUpdate") { [weak self] data, _ in
+            Task { @MainActor in
+                self?.handleRaceUpdate(data: data)
+            }
+        }
+
+        socket.on("raceCompleted") { [weak self] data, _ in
+            Task { @MainActor in
+                self?.handleRaceCompleted(data: data)
+            }
+        }
+    }
+
+    // MARK: - Connection Event Handlers
+
+    private func handleConnect() {
+        print("NetworkService: Socket connected")
+        isSocketConnected = true
+        isConnected = true
+
+        // Stop fallback polling since socket is connected
+        stopPolling()
+
+        // Request initial lobby list
+        socket?.emit("getLobbies")
+
+        // Rejoin lobby room if we were in one
+        if let lobby = currentLobby {
+            print("NetworkService: Rejoining lobby \(lobby.id)")
+        }
+    }
+
+    private func handleDisconnect(reason: String?) {
+        print("NetworkService: Socket disconnected - \(reason ?? "unknown")")
+        isSocketConnected = false
+
+        if !isManualDisconnect {
+            // Start fallback polling
+            startPolling()
+        } else {
+            isConnected = false
+        }
+    }
+
+    private func handleError(data: [Any]) {
+        print("NetworkService: Socket error - \(data)")
+        error = .connectionFailed
+    }
+
+    // MARK: - Server Event Handlers
+
+    private func handleLobbyList(data: [Any]) {
+        guard let lobbyArray = data.first as? [[String: Any]] else {
+            print("NetworkService: Failed to parse lobbyList")
+            return
+        }
+
+        do {
+            let jsonData = try JSONSerialization.data(withJSONObject: lobbyArray)
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            lobbies = try decoder.decode([ServerLobby].self, from: jsonData)
+        } catch {
+            print("NetworkService: Failed to decode lobbyList - \(error)")
+        }
+    }
+
+    private func handleLobbyCreated(data: [Any]) {
+        guard let lobbyData = data.first as? [String: Any] else {
+            print("NetworkService: Failed to parse lobbyCreated")
+            return
+        }
+
+        do {
+            let jsonData = try JSONSerialization.data(withJSONObject: lobbyData)
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            let lobby = try decoder.decode(ServerLobby.self, from: jsonData)
+            currentLobby = lobby
+        } catch {
+            print("NetworkService: Failed to decode lobbyCreated - \(error)")
+        }
+    }
+
+    private func handleLobbyUpdated(data: [Any]) {
+        guard let lobbyData = data.first as? [String: Any] else {
+            print("NetworkService: Failed to parse lobbyUpdated")
+            return
+        }
+
+        do {
+            let jsonData = try JSONSerialization.data(withJSONObject: lobbyData)
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            let lobby = try decoder.decode(ServerLobby.self, from: jsonData)
+
+            // Update currentLobby if this is our lobby
+            if currentLobby?.id == lobby.id {
+                currentLobby = lobby
+            }
+
+            // Update in lobbies list
+            if let index = lobbies.firstIndex(where: { $0.id == lobby.id }) {
+                lobbies[index] = lobby
+            }
+        } catch {
+            print("NetworkService: Failed to decode lobbyUpdated - \(error)")
+        }
+    }
+
+    private func handleCountdown(data: [Any]) {
+        guard let seconds = data.first as? Int else {
+            print("NetworkService: Failed to parse countdown")
+            return
+        }
+
+        countdown = seconds
+        onCountdown?(seconds)
+    }
+
+    private func handleRaceStarted(data: [Any]) {
+        guard let raceData = data.first as? [String: Any] else {
+            print("NetworkService: Failed to parse raceStarted")
+            return
+        }
+
+        do {
+            let jsonData = try JSONSerialization.data(withJSONObject: raceData)
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            let race = try decoder.decode(ServerRace.self, from: jsonData)
+
+            currentRace = race
+            countdown = nil
+            onRaceStarted?(race)
+        } catch {
+            print("NetworkService: Failed to decode raceStarted - \(error)")
+        }
+    }
+
+    private func handleRaceUpdate(data: [Any]) {
+        guard let raceData = data.first as? [String: Any] else {
+            print("NetworkService: Failed to parse raceUpdate")
+            return
+        }
+
+        do {
+            let jsonData = try JSONSerialization.data(withJSONObject: raceData)
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            let race = try decoder.decode(ServerRace.self, from: jsonData)
+
+            currentRace = race
+            onRaceUpdate?(race)
+        } catch {
+            print("NetworkService: Failed to decode raceUpdate - \(error)")
+        }
+    }
+
+    private func handleRaceCompleted(data: [Any]) {
+        guard let raceData = data.first as? [String: Any] else {
+            print("NetworkService: Failed to parse raceCompleted")
+            return
+        }
+
+        do {
+            let jsonData = try JSONSerialization.data(withJSONObject: raceData)
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            let race = try decoder.decode(ServerRace.self, from: jsonData)
+
+            currentRace = race
+            onRaceCompleted?(race)
+        } catch {
+            print("NetworkService: Failed to decode raceCompleted - \(error)")
+        }
+    }
+
     // MARK: - Connection
 
     func connect() {
-        guard webSocketTask == nil else { return }
+        guard socket == nil || socket?.status != .connected else { return }
 
-        // For Socket.IO, we use polling fallback since native WebSocket
-        // doesn't support Socket.IO protocol directly.
-        // In production, add SocketIO-Client-Swift package
+        isManualDisconnect = false
+        setupSocket()
 
-        // For now, use REST polling + WebSocket for updates
+        print("NetworkService: Connecting to \(Self.serverURL)")
+        socket?.connect()
+
+        // Start fallback polling while socket connects
         startPolling()
-        isConnected = true
-
-        print("NetworkService: Connected to \(Self.serverURL)")
     }
 
     func disconnect() {
+        isManualDisconnect = true
         stopPolling()
-        webSocketTask?.cancel(with: .goingAway, reason: nil)
-        webSocketTask = nil
+
+        socket?.disconnect()
+        socket?.removeAllHandlers()
+        manager = nil
+        socket = nil
+
+        isSocketConnected = false
         isConnected = false
+        currentLobby = nil
+        currentRace = nil
+
+        print("NetworkService: Disconnected")
     }
 
-    // MARK: - Polling (Simple approach without Socket.IO package)
-
-    private var pollingTimer: Timer?
+    // MARK: - Fallback Polling
 
     private func startPolling() {
-        // Poll for lobby updates every 2 seconds
+        guard pollingTimer == nil else { return }
+
+        // Poll for lobby updates every 2 seconds as fallback
         pollingTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 await self?.fetchLobbies()
@@ -100,6 +389,9 @@ class NetworkService: ObservableObject {
         Task {
             await fetchLobbies()
         }
+
+        isConnected = true
+        print("NetworkService: Fallback polling started")
     }
 
     private func stopPolling() {
@@ -107,7 +399,7 @@ class NetworkService: ObservableObject {
         pollingTimer = nil
     }
 
-    // MARK: - REST API Calls
+    // MARK: - REST API Calls (Fallback)
 
     func fetchLobbies() async {
         guard let url = URL(string: "\(Self.serverURL)/lobbies") else { return }
@@ -137,9 +429,206 @@ class NetworkService: ObservableObject {
         }
     }
 
-    // MARK: - Socket.IO Style Events (via HTTP for simplicity)
+    // MARK: - Lobby Operations (Socket.IO with REST Fallback)
 
     func createLobby(
+        creatorId: String,
+        raceDistance: Int,
+        entryFee: String,
+        payoutMode: String,
+        maxParticipants: Int
+    ) async throws -> ServerLobby {
+        if isSocketConnected, let socket = socket {
+            return try await withCheckedThrowingContinuation { continuation in
+                let data: [String: Any] = [
+                    "creatorId": creatorId,
+                    "raceDistance": raceDistance,
+                    "entryFee": entryFee,
+                    "payoutMode": payoutMode,
+                    "maxParticipants": maxParticipants
+                ]
+
+                socket.once("lobbyCreated") { [weak self] responseData, _ in
+                    guard let lobbyData = responseData.first as? [String: Any] else {
+                        continuation.resume(throwing: NetworkError.decodingError)
+                        return
+                    }
+
+                    do {
+                        let jsonData = try JSONSerialization.data(withJSONObject: lobbyData)
+                        let decoder = JSONDecoder()
+                        decoder.dateDecodingStrategy = .iso8601
+                        let lobby = try decoder.decode(ServerLobby.self, from: jsonData)
+
+                        Task { @MainActor in
+                            self?.currentLobby = lobby
+                        }
+                        continuation.resume(returning: lobby)
+                    } catch {
+                        continuation.resume(throwing: NetworkError.decodingError)
+                    }
+                }
+
+                socket.emit("createLobby", data)
+            }
+        } else {
+            return try await createLobbyREST(
+                creatorId: creatorId,
+                raceDistance: raceDistance,
+                entryFee: entryFee,
+                payoutMode: payoutMode,
+                maxParticipants: maxParticipants
+            )
+        }
+    }
+
+    func joinLobby(
+        lobbyId: String,
+        oderId: String,
+        displayName: String,
+        walletAddress: String,
+        equipmentType: String
+    ) async throws {
+        if isSocketConnected, let socket = socket {
+            return try await withCheckedThrowingContinuation { continuation in
+                let participant: [String: Any] = [
+                    "id": oderId,
+                    "oderId": oderId,
+                    "displayName": displayName,
+                    "walletAddress": walletAddress,
+                    "equipmentType": equipmentType
+                ]
+
+                let data: [String: Any] = [
+                    "lobbyId": lobbyId,
+                    "participant": participant
+                ]
+
+                socket.once("lobbyUpdated") { [weak self] responseData, _ in
+                    guard let lobbyData = responseData.first as? [String: Any] else {
+                        continuation.resume(throwing: NetworkError.decodingError)
+                        return
+                    }
+
+                    do {
+                        let jsonData = try JSONSerialization.data(withJSONObject: lobbyData)
+                        let decoder = JSONDecoder()
+                        decoder.dateDecodingStrategy = .iso8601
+                        let lobby = try decoder.decode(ServerLobby.self, from: jsonData)
+
+                        Task { @MainActor in
+                            self?.currentLobby = lobby
+                        }
+                        continuation.resume(returning: ())
+                    } catch {
+                        continuation.resume(throwing: NetworkError.decodingError)
+                    }
+                }
+
+                socket.emit("joinLobby", data)
+            }
+        } else {
+            try await joinLobbyREST(
+                lobbyId: lobbyId,
+                oderId: oderId,
+                displayName: displayName,
+                walletAddress: walletAddress,
+                equipmentType: equipmentType
+            )
+        }
+    }
+
+    func addBot(lobbyId: String, difficulty: String) async throws {
+        if isSocketConnected, let socket = socket {
+            let data: [String: Any] = [
+                "lobbyId": lobbyId,
+                "difficulty": difficulty
+            ]
+            socket.emit("addBot", data)
+            // Server will emit lobbyUpdated which we handle in event handler
+        } else {
+            try await addBotREST(lobbyId: lobbyId, difficulty: difficulty)
+        }
+    }
+
+    func setReady(lobbyId: String, oderId: String) async throws {
+        if isSocketConnected, let socket = socket {
+            let data: [String: Any] = [
+                "lobbyId": lobbyId,
+                "oderId": oderId
+            ]
+            socket.emit("setReady", data)
+            // Server will emit lobbyUpdated which we handle in event handler
+        } else {
+            try await setReadyREST(lobbyId: lobbyId, oderId: oderId)
+        }
+    }
+
+    func leaveLobby(lobbyId: String, oderId: String) {
+        if isSocketConnected, let socket = socket {
+            let data: [String: Any] = [
+                "lobbyId": lobbyId,
+                "oderId": oderId
+            ]
+            socket.emit("leaveLobby", data)
+        }
+        currentLobby = nil
+    }
+
+    func startRace(lobbyId: String) async throws -> ServerRace {
+        if isSocketConnected, let socket = socket {
+            return try await withCheckedThrowingContinuation { continuation in
+                socket.once("raceStarted") { [weak self] responseData, _ in
+                    guard let raceData = responseData.first as? [String: Any] else {
+                        continuation.resume(throwing: NetworkError.decodingError)
+                        return
+                    }
+
+                    do {
+                        let jsonData = try JSONSerialization.data(withJSONObject: raceData)
+                        let decoder = JSONDecoder()
+                        decoder.dateDecodingStrategy = .iso8601
+                        let race = try decoder.decode(ServerRace.self, from: jsonData)
+
+                        Task { @MainActor in
+                            self?.currentRace = race
+                        }
+                        continuation.resume(returning: race)
+                    } catch {
+                        continuation.resume(throwing: NetworkError.decodingError)
+                    }
+                }
+
+                socket.emit("startRace", ["lobbyId": lobbyId])
+            }
+        } else {
+            return try await startRaceREST(lobbyId: lobbyId)
+        }
+    }
+
+    func sendRaceUpdate(raceId: String, oderId: String, distance: Double, pace: Double, watts: Int) async {
+        if isSocketConnected, let socket = socket {
+            let metrics: [String: Any] = [
+                "distance": distance,
+                "pace": pace,
+                "watts": watts
+            ]
+
+            let data: [String: Any] = [
+                "raceId": raceId,
+                "oderId": oderId,
+                "metrics": metrics
+            ]
+
+            socket.emit("raceUpdate", data)
+        } else {
+            await sendRaceUpdateREST(raceId: raceId, oderId: oderId, distance: distance, pace: pace, watts: watts)
+        }
+    }
+
+    // MARK: - REST API Fallback Methods
+
+    private func createLobbyREST(
         creatorId: String,
         raceDistance: Int,
         entryFee: String,
@@ -174,7 +663,7 @@ class NetworkService: ObservableObject {
         return lobby
     }
 
-    func joinLobby(
+    private func joinLobbyREST(
         lobbyId: String,
         oderId: String,
         displayName: String,
@@ -204,7 +693,7 @@ class NetworkService: ObservableObject {
         currentLobby = try decoder.decode(ServerLobby.self, from: data)
     }
 
-    func addBot(lobbyId: String, difficulty: String) async throws {
+    private func addBotREST(lobbyId: String, difficulty: String) async throws {
         guard let url = URL(string: "\(Self.serverURL)/api/lobby/\(lobbyId)/bot") else {
             throw NetworkError.invalidURL
         }
@@ -224,7 +713,7 @@ class NetworkService: ObservableObject {
         await fetchLobbies()
     }
 
-    func setReady(lobbyId: String, oderId: String) async throws {
+    private func setReadyREST(lobbyId: String, oderId: String) async throws {
         guard let url = URL(string: "\(Self.serverURL)/api/lobby/\(lobbyId)/ready") else {
             throw NetworkError.invalidURL
         }
@@ -242,7 +731,7 @@ class NetworkService: ObservableObject {
         currentLobby = try decoder.decode(ServerLobby.self, from: data)
     }
 
-    func startRace(lobbyId: String) async throws -> ServerRace {
+    private func startRaceREST(lobbyId: String) async throws -> ServerRace {
         guard let url = URL(string: "\(Self.serverURL)/api/lobby/\(lobbyId)/start") else {
             throw NetworkError.invalidURL
         }
@@ -259,7 +748,7 @@ class NetworkService: ObservableObject {
         return race
     }
 
-    func sendRaceUpdate(raceId: String, oderId: String, distance: Double, pace: Double, watts: Int) async {
+    private func sendRaceUpdateREST(raceId: String, oderId: String, distance: Double, pace: Double, watts: Int) async {
         guard let url = URL(string: "\(Self.serverURL)/api/race/\(raceId)/update") else { return }
 
         var request = URLRequest(url: url)

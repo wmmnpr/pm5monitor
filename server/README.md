@@ -97,3 +97,5 @@ fly deploy
 ## Environment Variables
 
 - `PORT` - Server port (default: 3000)
+
+ngrok config add-authtoken 301DbsQq2EhNuNEMOtqjUZUfWew_38F3sU5xoPp5TEQ8ZP7T5
