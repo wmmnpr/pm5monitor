@@ -16,67 +16,93 @@ struct RaceView: View {
         networkService.currentRace?.participants ?? []
     }
 
+    private var entryFee: String {
+        networkService.currentLobby?.entryFee ?? "0"
+    }
+
+    private var formattedEntryFee: String {
+        let weiString = entryFee
+        guard let wei = Double(weiString) else { return "FREE" }
+        if wei == 0 { return "FREE" }
+        let eth = wei / 1_000_000_000_000_000_000
+        if eth < 0.001 {
+            return String(format: "%.6f ETH", eth)
+        } else {
+            return String(format: "%.4f ETH", eth)
+        }
+    }
+
     var body: some View {
-        ZStack {
-            // Dark background
-            Color.black.ignoresSafeArea()
+        GeometryReader { geometry in
+            ZStack {
+                // Dark background
+                Color.black.ignoresSafeArea()
 
-            VStack(spacing: 0) {
-                // Race header with distance info
-                RaceHeaderView(
-                    targetDistance: targetDistance,
-                    currentDistance: bleManager.currentMetrics.distance
-                )
+                VStack(spacing: 0) {
+                    // Race info header
+                    RaceInfoHeader(
+                        targetDistance: targetDistance,
+                        entryFee: formattedEntryFee,
+                        elapsedTime: bleManager.currentMetrics.elapsedTime
+                    )
 
-                // Race track visualization - use server participants if available
-                if !serverParticipants.isEmpty {
-                    MultiRacerLaneView(
-                        participants: serverParticipants,
-                        currentUserId: currentUserId,
-                        currentUserDistance: bleManager.currentMetrics.distance,
-                        targetDistance: Double(targetDistance)
-                    )
-                    .frame(height: CGFloat(max(2, serverParticipants.count)) * 45)
-                    .padding(.vertical, 8)
-                } else {
-                    RaceTrackView(
-                        participants: raceService.participants,
-                        myProgress: raceService.myProgress,
-                        targetDistance: Double(targetDistance),
-                        myEquipmentType: raceService.myEquipmentType
-                    )
-                    .frame(height: 180)
-                    .padding(.vertical, 8)
+                    // Race lanes - fills remaining space
+                    if !serverParticipants.isEmpty {
+                        MultiRacerLaneView(
+                            participants: serverParticipants,
+                            currentUserId: currentUserId,
+                            currentUserDistance: bleManager.currentMetrics.distance,
+                            targetDistance: Double(targetDistance)
+                        )
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 16)
+                    } else {
+                        RaceTrackView(
+                            participants: raceService.participants,
+                            myProgress: raceService.myProgress,
+                            targetDistance: Double(targetDistance),
+                            myEquipmentType: raceService.myEquipmentType
+                        )
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 16)
+                    }
                 }
 
-                // Main metrics display
-                MainRaceMetrics(
-                    metrics: bleManager.currentMetrics,
-                    targetDistance: Double(targetDistance)
-                )
+                // Countdown overlay
+                if case .countdown(let seconds) = raceService.raceState {
+                    CountdownOverlay(seconds: seconds)
+                }
 
-                Spacer()
-
-                // Bottom metrics panel
-                BottomMetricsPanel(
-                    metrics: bleManager.currentMetrics,
-                    progress: raceService.myProgress
-                )
+                // Finish overlay
+                if case .finished(let position) = raceService.raceState {
+                    RaceFinishedOverlay(position: position)
+                }
             }
-
-            // Countdown overlay
-            if case .countdown(let seconds) = raceService.raceState {
-                CountdownOverlay(seconds: seconds)
-            }
-
-            // Finish overlay
-            if case .finished(let position) = raceService.raceState {
-                RaceFinishedOverlay(position: position)
-            }
+        }
+        .ignoresSafeArea()
+        .onAppear {
+            // Force landscape orientation
+            setLandscapeOrientation()
+        }
+        .onDisappear {
+            // Restore portrait orientation
+            restorePortraitOrientation()
         }
         .onChange(of: bleManager.currentMetrics) { newMetrics in
             sendUpdate(metrics: newMetrics)
         }
+    }
+
+    private func setLandscapeOrientation() {
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene else { return }
+        windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: .landscape))
+        UIViewController.attemptRotationToDeviceOrientation()
+    }
+
+    private func restorePortraitOrientation() {
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene else { return }
+        windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: .portrait))
+        UIViewController.attemptRotationToDeviceOrientation()
     }
 
     private func sendUpdate(metrics: RowingMetrics) {
@@ -245,6 +271,7 @@ struct RaceTrackView: View {
             displayName: "YOU",
             equipmentType: myEquipmentType,
             distance: myProgress?.distance ?? 0,
+            pace: myProgress?.currentPace ?? 0,
             isMe: true
         ))
 
@@ -255,6 +282,7 @@ struct RaceTrackView: View {
                 displayName: participant.displayName,
                 equipmentType: participant.equipmentType,
                 distance: participant.distance,
+                pace: participant.pace,
                 isMe: false
             ))
         }
@@ -294,6 +322,7 @@ struct RacerDisplayInfo: Identifiable {
     let displayName: String
     let equipmentType: EquipmentType
     let distance: Double
+    let pace: Double
     let isMe: Bool
 
     func progress(toward target: Double) -> Double {
@@ -316,6 +345,17 @@ struct RacerView: View {
         }
     }
 
+    private var formattedPace: String {
+        guard racer.pace > 0 else { return "-:--" }
+        let minutes = Int(racer.pace) / 60
+        let seconds = Int(racer.pace) % 60
+        return String(format: "%d:%02d", minutes, seconds)
+    }
+
+    private var formattedDistance: String {
+        return "\(Int(racer.distance))m"
+    }
+
     var body: some View {
         let yPosition = (CGFloat(laneIndex) + 0.5) * laneHeight
 
@@ -331,16 +371,87 @@ struct RacerView: View {
                     .foregroundColor(racer.isMe ? .white : equipmentColor)
             }
 
-            // Name tag
-            Text(racer.isMe ? "YOU" : String(racer.displayName.prefix(5)))
-                .font(.system(size: 11, weight: racer.isMe ? .bold : .medium))
-                .foregroundColor(.white)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 3)
-                .background(racer.isMe ? equipmentColor : Color.gray.opacity(0.7))
-                .cornerRadius(4)
+            // Name and metrics
+            VStack(alignment: .leading, spacing: 1) {
+                Text(racer.isMe ? "YOU" : String(racer.displayName.prefix(6)).uppercased())
+                    .font(.system(size: 10, weight: racer.isMe ? .bold : .medium))
+                    .foregroundColor(.white)
+
+                HStack(spacing: 6) {
+                    Text(formattedDistance)
+                        .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                        .foregroundColor(.yellow)
+
+                    Text(formattedPace)
+                        .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                        .foregroundColor(.green)
+                }
+            }
+            .padding(.horizontal, 6)
+            .padding(.vertical, 3)
+            .background(racer.isMe ? equipmentColor.opacity(0.9) : Color.black.opacity(0.7))
+            .cornerRadius(4)
         }
         .position(x: xPosition, y: yPosition)
+    }
+}
+
+// MARK: - Race Info Header
+
+struct RaceInfoHeader: View {
+    let targetDistance: Int
+    let entryFee: String
+    let elapsedTime: TimeInterval
+
+    private var formattedTime: String {
+        let minutes = Int(elapsedTime) / 60
+        let seconds = Int(elapsedTime) % 60
+        let tenths = Int((elapsedTime.truncatingRemainder(dividingBy: 1)) * 10)
+        return String(format: "%d:%02d.%d", minutes, seconds, tenths)
+    }
+
+    private var distanceDisplay: String {
+        RaceDistance.fromMeters(targetDistance).displayName
+    }
+
+    var body: some View {
+        HStack(spacing: 0) {
+            // Distance
+            HStack(spacing: 8) {
+                Image(systemName: "flag.checkered")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.cyan)
+                Text(distanceDisplay)
+                    .font(.system(size: 18, weight: .bold, design: .monospaced))
+                    .foregroundColor(.white)
+            }
+            .frame(maxWidth: .infinity)
+
+            // Elapsed Time (center, larger)
+            VStack(spacing: 2) {
+                Text("TIME")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundColor(.gray)
+                Text(formattedTime)
+                    .font(.system(size: 28, weight: .bold, design: .monospaced))
+                    .foregroundColor(.yellow)
+            }
+            .frame(maxWidth: .infinity)
+
+            // Entry Fee
+            HStack(spacing: 8) {
+                Image(systemName: "dollarsign.circle.fill")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.green)
+                Text(entryFee)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.white)
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+        .background(Color.black.opacity(0.8))
     }
 }
 

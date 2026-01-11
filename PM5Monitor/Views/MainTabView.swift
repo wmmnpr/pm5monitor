@@ -307,6 +307,7 @@ struct MultiRacerLaneView: View {
                 ForEach(Array(sortedParticipants.enumerated()), id: \.element.id) { index, participant in
                     let isMe = participant.oderId == currentUserId
                     let distance = isMe ? currentUserDistance : participant.distance
+                    let pace = participant.pace
                     let progress = min(1.0, distance / targetDistance)
                     let xPosition = calculateXPosition(progress: progress, width: geometry.size.width)
                     let yPosition = (CGFloat(index) + 0.5) * laneHeight
@@ -315,6 +316,8 @@ struct MultiRacerLaneView: View {
                         displayName: participant.displayName,
                         equipmentType: participant.equipment,
                         isMe: isMe,
+                        distance: distance,
+                        pace: pace,
                         xPosition: xPosition,
                         yPosition: yPosition
                     )
@@ -356,6 +359,8 @@ struct RacerIconView: View {
     let displayName: String
     let equipmentType: EquipmentType
     let isMe: Bool
+    let distance: Double
+    let pace: Double
     let xPosition: CGFloat
     let yPosition: CGFloat
 
@@ -367,25 +372,51 @@ struct RacerIconView: View {
         }
     }
 
+    private var formattedPace: String {
+        guard pace > 0 else { return "-:--" }
+        let minutes = Int(pace) / 60
+        let seconds = Int(pace) % 60
+        return String(format: "%d:%02d", minutes, seconds)
+    }
+
+    private var formattedDistance: String {
+        return "\(Int(distance))m"
+    }
+
     var body: some View {
-        HStack(spacing: 4) {
-            ZStack {
-                Circle()
-                    .fill(isMe ? equipmentColor : Color.white.opacity(0.9))
-                    .frame(width: 28, height: 28)
+        VStack(spacing: 2) {
+            // Racer icon and name
+            HStack(spacing: 4) {
+                ZStack {
+                    Circle()
+                        .fill(isMe ? equipmentColor : Color.white.opacity(0.9))
+                        .frame(width: 28, height: 28)
 
-                Image(systemName: equipmentType.iconName)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(isMe ? .white : equipmentColor)
+                    Image(systemName: equipmentType.iconName)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(isMe ? .white : equipmentColor)
+                }
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(isMe ? "YOU" : String(displayName.prefix(6)).uppercased())
+                        .font(.system(size: 10, weight: isMe ? .bold : .medium))
+                        .foregroundColor(.white)
+
+                    HStack(spacing: 6) {
+                        Text(formattedDistance)
+                            .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                            .foregroundColor(.yellow)
+
+                        Text(formattedPace)
+                            .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                            .foregroundColor(.green)
+                    }
+                }
+                .padding(.horizontal, 6)
+                .padding(.vertical, 3)
+                .background(isMe ? equipmentColor.opacity(0.9) : Color.black.opacity(0.7))
+                .cornerRadius(4)
             }
-
-            Text(isMe ? "YOU" : String(displayName.prefix(5)).uppercased())
-                .font(.system(size: 9, weight: isMe ? .bold : .medium))
-                .foregroundColor(.white)
-                .padding(.horizontal, 4)
-                .padding(.vertical, 2)
-                .background(isMe ? equipmentColor : Color.gray.opacity(0.7))
-                .cornerRadius(3)
         }
         .position(x: xPosition, y: yPosition)
     }
