@@ -266,7 +266,7 @@ function simulateBots(race) {
 // ============================================
 
 io.on('connection', (socket) => {
-  console.log(`Client connected: ${socket.id}`);
+  console.log(`io Client connected: ${socket.id}`);
 
   // Send current lobby list on connect
   socket.emit('lobbyList', getLobbyList());
@@ -274,6 +274,7 @@ io.on('connection', (socket) => {
   // ---- LOBBY EVENTS ----
 
   socket.on('createLobby', (data) => {
+    console.log(`socket createLobby`);
     const lobby = createLobby(data);
     socket.join(`lobby:${lobby.id}`);
     io.emit('lobbyList', getLobbyList());
@@ -282,11 +283,12 @@ io.on('connection', (socket) => {
   });
 
   socket.on('getLobbies', () => {
-    console.log("ws Client requested lobby list");
+    console.log("socket getLobbies");
     socket.emit('lobbyList', getLobbyList());
   });
 
   socket.on('joinLobby', (data) => {
+    console.log("socket joinLobby");
     const { lobbyId, participant } = data;
     const lobby = addParticipant(lobbyId, participant);
     if (lobby) {
@@ -298,6 +300,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('addBot', (data) => {
+    console.log("socket addBot");
     const { lobbyId, difficulty } = data;
     const result = addBot(lobbyId, difficulty);
     if (result) {
@@ -308,6 +311,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('setReady', (data) => {
+    console.log("socket setReady");
     const { lobbyId, oderId } = data;
     const lobby = setParticipantReady(lobbyId, oderId);
     if (lobby) {
@@ -316,6 +320,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('leaveLobby', (data) => {
+    console.log("socket leaveLobby");
     const { lobbyId, oderId } = data;
     const lobby = removeParticipant(lobbyId, oderId);
     if (lobby) {
@@ -399,7 +404,7 @@ io.on('connection', (socket) => {
 
 app.get('/', (req, res) => {
   res.json({
-    name: 'PM5 Racing Server',
+    name: 'rest PM5 Racing Server',
     version: '1.0.0',
     status: 'running',
     lobbies: lobbies.size,
@@ -414,6 +419,7 @@ app.get('/lobbies', (req, res) => {
 
 app.get('/lobby/:id', (req, res) => {
   const lobby = lobbies.get(req.params.id);
+  console.log(`GET /lobbies/${lobby} called`);
   if (lobby) {
     res.json(lobby);
   } else {
@@ -423,6 +429,7 @@ app.get('/lobby/:id', (req, res) => {
 
 // Create lobby
 app.post('/api/lobby', (req, res) => {
+  console.log(`POST /api/lobby called`);
   const lobby = createLobby(req.body);
   io.emit('lobbyList', getLobbyList());
   res.json(lobby);
@@ -430,6 +437,7 @@ app.post('/api/lobby', (req, res) => {
 
 // Join lobby
 app.post('/api/lobby/:id/join', (req, res) => {
+  console.log(`POST /api/lobby/${req.params.id}/join called`);
   const lobby = addParticipant(req.params.id, req.body);
   if (lobby) {
     io.to(`lobby:${req.params.id}`).emit('lobbyUpdated', lobby);
@@ -442,6 +450,7 @@ app.post('/api/lobby/:id/join', (req, res) => {
 
 // Add bot
 app.post('/api/lobby/:id/bot', (req, res) => {
+  console.log(`POST /api/lobby/${req.params.id}/bot called`);
   const result = addBot(req.params.id, req.body.difficulty || 'medium');
   if (result) {
     io.to(`lobby:${req.params.id}`).emit('lobbyUpdated', result.lobby);
@@ -454,6 +463,7 @@ app.post('/api/lobby/:id/bot', (req, res) => {
 
 // Set ready
 app.post('/api/lobby/:id/ready', (req, res) => {
+  console.log(`POST /api/lobby/${req.params.id}/ready called`);
   const lobby = setParticipantReady(req.params.id, req.body.oderId);
   if (lobby) {
     io.to(`lobby:${req.params.id}`).emit('lobbyUpdated', lobby);
@@ -465,6 +475,7 @@ app.post('/api/lobby/:id/ready', (req, res) => {
 
 // Start race
 app.post('/api/lobby/:id/start', (req, res) => {
+  console.log(`POST /api/lobby/${req.params.id}/start called`);
   const lobbyId = req.params.id;
   const race = startRace(lobbyId);
   if (race) {
