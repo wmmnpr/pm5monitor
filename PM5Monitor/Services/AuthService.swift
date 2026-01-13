@@ -86,6 +86,34 @@ class AuthService: NSObject, ObservableObject {
         error = nil
     }
 
+    // MARK: - Quick Start (Guest Login)
+
+    /// Sign in as a guest with a custom display name
+    func signInAsGuest(displayName: String) {
+        isLoading = true
+        error = nil
+
+        // Generate a unique guest ID
+        let guestId = "guest-\(UUID().uuidString.prefix(8))"
+
+        let user = AuthUser(
+            id: guestId,
+            email: nil,
+            displayName: displayName
+        )
+
+        currentUser = user
+        userProfile = UserProfile(
+            id: guestId,
+            email: nil,
+            displayName: displayName
+        )
+        isAuthenticated = true
+
+        saveUser(user)
+        isLoading = false
+    }
+
     /// Sign out
     func signOut() throws {
         clearStoredUser()

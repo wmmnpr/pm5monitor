@@ -33,7 +33,7 @@ struct MainTabView: View {
                         // Race / Training
                         TrainingView(bleManager: bleManager, authService: authService, networkService: networkService)
                             .tabItem {
-                                Label("Race", systemImage: "figure.rowing")
+                                Label("Race", systemImage: "flag.checkered")
                             }
                             .tag(0)
 
@@ -44,7 +44,7 @@ struct MainTabView: View {
                             authService: authService
                         )
                         .tabItem {
-                            Label("Lobby", systemImage: "flag.checkered")
+                            Label("Lobby", systemImage: "person.3.fill")
                         }
                         .tag(1)
 
