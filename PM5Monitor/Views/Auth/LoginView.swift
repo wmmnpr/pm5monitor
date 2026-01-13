@@ -1,5 +1,4 @@
 import SwiftUI
-import AuthenticationServices
 
 struct LoginView: View {
     @ObservedObject var authService: AuthService
@@ -67,39 +66,6 @@ struct LoginView: View {
                         .cornerRadius(12)
                     }
                     .padding(.horizontal, 32)
-
-                    // Divider
-                    HStack {
-                        Rectangle()
-                            .fill(Color.gray.opacity(0.3))
-                            .frame(height: 1)
-                        Text("or")
-                            .font(.caption)
-                            .foregroundColor(.gray)
-                        Rectangle()
-                            .fill(Color.gray.opacity(0.3))
-                            .frame(height: 1)
-                    }
-                    .padding(.horizontal, 32)
-
-                    // Sign in with Apple button
-                    SignInWithAppleButton(.signIn) { request in
-                        request.requestedScopes = [.fullName, .email]
-                    } onCompletion: { result in
-                        switch result {
-                        case .success(let authorization):
-                            handleAppleSignIn(authorization)
-                        case .failure(let error):
-                            if (error as? ASAuthorizationError)?.code != .canceled {
-                                errorMessage = "Sign in with Apple failed"
-                                showError = true
-                            }
-                        }
-                    }
-                    .signInWithAppleButtonStyle(.white)
-                    .frame(height: 54)
-                    .cornerRadius(12)
-                    .padding(.horizontal, 32)
                 }
 
                 Spacer()
@@ -140,33 +106,6 @@ struct LoginView: View {
             errorMessage = error.localizedDescription
             showError = true
         }
-    }
-
-    private func handleAppleSignIn(_ authorization: ASAuthorization) {
-        guard let appleIDCredential = authorization.credential as? ASAuthorizationAppleIDCredential else {
-            errorMessage = "Invalid credentials"
-            showError = true
-            return
-        }
-
-        let userId = appleIDCredential.user
-
-        // Get name (only available on first sign in)
-        var name: String? = nil
-        if let fullName = appleIDCredential.fullName {
-            let givenName = fullName.givenName ?? ""
-            let familyName = fullName.familyName ?? ""
-            name = "\(givenName) \(familyName)".trimmingCharacters(in: .whitespaces)
-            if name?.isEmpty == true {
-                name = nil
-            }
-        }
-
-        // Use provided name or default to "Rower"
-        let displayName = name ?? "Rower"
-
-        // Sign in using the guest method with Apple's user ID
-        authService.signInAsGuest(displayName: displayName)
     }
 }
 
