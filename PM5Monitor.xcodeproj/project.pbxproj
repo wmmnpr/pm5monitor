@@ -8,7 +8,6 @@
 
 /* Begin PBXBuildFile section */
 		3DD9C4072F13BD5400087738 /* SocketIO in Frameworks */ = {isa = PBXBuildFile; productRef = 3DD9C4062F13BD5400087738 /* SocketIO */; };
-		A10100 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A10101 /* Assets.xcassets */; };
 		A10001 /* PM5MonitorApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002 /* PM5MonitorApp.swift */; };
 		A10003 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10004 /* ContentView.swift */; };
 		A10005 /* BLEManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10006 /* BLEManager.swift */; };
@@ -30,6 +29,7 @@
 		A10027 /* RaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10028 /* RaceView.swift */; };
 		A10029 /* WalletView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1002A /* WalletView.swift */; };
 		A10090 /* NetworkService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10091 /* NetworkService.swift */; };
+		A10100 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A10101 /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -375,6 +375,7 @@
 				CODE_SIGN_ENTITLEMENTS = PM5Monitor/PM5Monitor.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = NB28FTJ98Y;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = PM5Monitor/Info.plist;
@@ -391,7 +392,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.pedrito.PM5Monitor;
+				PRODUCT_BUNDLE_IDENTIFIER = com.wmmnpr.PM5Monitor;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -404,6 +405,7 @@
 				CODE_SIGN_ENTITLEMENTS = PM5Monitor/PM5Monitor.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = NB28FTJ98Y;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = PM5Monitor/Info.plist;
@@ -420,7 +422,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.pedrito.PM5Monitor;
+				PRODUCT_BUNDLE_IDENTIFIER = com.wmmnpr.PM5Monitor;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
