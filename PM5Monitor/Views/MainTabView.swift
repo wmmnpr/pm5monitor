@@ -80,9 +80,12 @@ struct MainTabView: View {
         // Handle countdown events from Socket.IO
         networkService.onCountdown = { [weak raceService, weak bleManager, weak networkService] seconds in
             Task { @MainActor in
-                // Configure PM5 when countdown starts (first countdown event)
+                // Configure PM5 and reset metrics when countdown starts (first countdown event)
                 if raceService?.countdown == nil,
                    let targetDistance = networkService?.currentRace?.targetDistance {
+                    // Reset metrics from previous race
+                    bleManager?.resetMetrics()
+                    // Configure PM5 with the race distance
                     bleManager?.configureWorkout(distance: targetDistance)
                 }
 
