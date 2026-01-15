@@ -428,6 +428,7 @@ struct RacerIconView: View {
             }
         }
         .position(x: xPosition, y: yPosition)
+        .animation(.easeInOut(duration: 0.3), value: xPosition)
     }
 }
 

@@ -6,6 +6,7 @@ struct RaceView: View {
     @ObservedObject var networkService: NetworkService
     var currentUserId: String
 
+    @Environment(\.scenePhase) private var scenePhase
     @State private var previousMetrics: RowingMetrics?
 
     private var targetDistance: Int {
@@ -87,6 +88,12 @@ struct RaceView: View {
         .onDisappear {
             // Restore portrait orientation
             restorePortraitOrientation()
+        }
+        .onChange(of: scenePhase) { newPhase in
+            // Re-apply landscape when returning from background
+            if newPhase == .active {
+                setLandscapeOrientation()
+            }
         }
         .onChange(of: bleManager.currentMetrics) { newMetrics in
             sendUpdate(metrics: newMetrics)
@@ -393,6 +400,7 @@ struct RacerView: View {
             .cornerRadius(4)
         }
         .position(x: xPosition, y: yPosition)
+        .animation(.easeInOut(duration: 0.3), value: xPosition)
     }
 }
 

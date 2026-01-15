@@ -108,61 +108,88 @@ class BLEManager: NSObject, ObservableObject {
             return
         }
 
-        // First reset the PM5 to ensure clean state
-        resetWorkout()
+        print("BLE: Starting workout configuration for \(distance)m")
 
-        // Small delay then send workout configuration
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
-            self?.sendWorkoutConfig(distance: distance, peripheral: peripheral, characteristic: characteristic)
+        // Step 1: Reset to idle state
+        sendResetCommand(peripheral: peripheral, characteristic: characteristic)
+
+        // Step 2: Set the distance workout (after short delay)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            self?.sendDistanceCommand(distance: distance, peripheral: peripheral, characteristic: characteristic)
+        }
+
+        // Step 3: Go to ready state (after another delay)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            self?.sendReadyCommand(peripheral: peripheral, characteristic: characteristic)
         }
     }
 
-    private func sendWorkoutConfig(distance: Int, peripheral: CBPeripheral, characteristic: CBCharacteristic) {
-        // Build CSAFE command for single distance workout
-        // Using CSAFE_SETUSERCFG1_CMD wrapper with PM commands
-        var command = Data()
+    private func sendResetCommand(peripheral: CBPeripheral, characteristic: CBCharacteristic) {
+        // CSAFE: GOFINISHED (0x86) + GOIDLE (0x87)
+        var payload: [UInt8] = [0x86, 0x87]
+        let frame = buildCSAFEFrame(payload: &payload)
+        peripheral.writeValue(frame, for: characteristic, type: .withResponse)
+        print("BLE: Sent reset command: \(frame.map { String(format: "%02X", $0) }.joined(separator: " "))")
+    }
 
-        // CSAFE Start Frame
-        command.append(0xF1)
+    private func sendDistanceCommand(distance: Int, peripheral: CBPeripheral, characteristic: CBCharacteristic) {
+        // CSAFE_SETHORIZONTAL_CMD (0x21) - Standard CSAFE command for setting distance
+        // Format: [cmd] [byte_count] [distance_lo] [distance_hi] [unit]
+        // Unit: 0x24 = meters
+        var payload: [UInt8] = [
+            0x21,                           // CSAFE_SETHORIZONTAL_CMD
+            0x03,                           // 3 bytes of data follow
+            UInt8(distance & 0xFF),         // Distance low byte
+            UInt8((distance >> 8) & 0xFF),  // Distance high byte
+            0x24                            // Unit: meters
+        ]
+        let frame = buildCSAFEFrame(payload: &payload)
+        peripheral.writeValue(frame, for: characteristic, type: .withResponse)
+        print("BLE: Sent distance command (\(distance)m): \(frame.map { String(format: "%02X", $0) }.joined(separator: " "))")
+    }
 
-        // CSAFE_SETUSERCFG1_CMD - wrapper for PM-specific commands
-        command.append(0x1A)
+    private func sendReadyCommand(peripheral: CBPeripheral, characteristic: CBCharacteristic) {
+        // CSAFE_GOREADY_CMD (0x84) - Prepare PM5 for workout
+        var payload: [UInt8] = [0x84]
+        let frame = buildCSAFEFrame(payload: &payload)
+        peripheral.writeValue(frame, for: characteristic, type: .withResponse)
+        print("BLE: Sent ready command: \(frame.map { String(format: "%02X", $0) }.joined(separator: " "))")
+    }
 
-        // Calculate payload length (will fill in after building payload)
-        let payloadStartIndex = command.count
-        command.append(0x00) // Placeholder for length
+    private func buildCSAFEFrame(payload: inout [UInt8]) -> Data {
+        var frame = Data()
 
-        // PM_SET_WORKOUTTYPE - Set to single distance (0x01)
-        command.append(0x01) // PM_SET_WORKOUTTYPE command
-        command.append(0x01) // Length: 1 byte
-        command.append(0x01) // Value: SINGLE_DISTANCE
+        // Start flag
+        frame.append(0xF1)
 
-        // PM_SET_WORKOUTDURATION - Set the distance
-        command.append(0x03) // PM_SET_WORKOUTDURATION command
-        command.append(0x04) // Length: 4 bytes
-        // Distance in meters as 32-bit little-endian
-        let distanceBytes = withUnsafeBytes(of: UInt32(distance).littleEndian) { Array($0) }
-        command.append(distanceBytes[0])
-        command.append(distanceBytes[1])
-        command.append(distanceBytes[2])
-        command.append(distanceBytes[3])
-
-        // Update payload length
-        let payloadLength = command.count - payloadStartIndex - 1
-        command[payloadStartIndex] = UInt8(payloadLength)
-
-        // Calculate checksum (XOR of all bytes between flags)
-        var checksum: UInt8 = 0
-        for i in 1..<command.count {
-            checksum ^= command[i]
+        // Add payload with byte stuffing for bytes >= 0xF0
+        for byte in payload {
+            if byte >= 0xF0 {
+                frame.append(0xF3)           // Stuff byte
+                frame.append(byte & 0x03)    // Lower 2 bits only
+            } else {
+                frame.append(byte)
+            }
         }
-        command.append(checksum)
 
-        // CSAFE Stop Frame
-        command.append(0xF2)
+        // Calculate checksum (XOR of original payload bytes, not stuffed)
+        var checksum: UInt8 = 0
+        for byte in payload {
+            checksum ^= byte
+        }
 
-        peripheral.writeValue(command, for: characteristic, type: .withResponse)
-        print("BLE: Configured workout for \(distance)m - command: \(command.map { String(format: "%02X", $0) }.joined(separator: " "))")
+        // Add checksum with byte stuffing if needed
+        if checksum >= 0xF0 {
+            frame.append(0xF3)
+            frame.append(checksum & 0x03)
+        } else {
+            frame.append(checksum)
+        }
+
+        // Stop flag
+        frame.append(0xF2)
+
+        return frame
     }
 
     /// Reset the PM5 to idle state
@@ -170,22 +197,7 @@ class BLEManager: NSObject, ObservableObject {
         guard let peripheral = connectedPeripheral,
               let characteristic = controlCharacteristic else { return }
 
-        // CSAFE GOFINISHED then GOIDLE commands to reset
-        var command = Data()
-        command.append(0xF1) // Start frame
-        command.append(0x86) // CSAFE_GOFINISHED_CMD
-        command.append(0x87) // CSAFE_GOIDLE_CMD
-
-        // Calculate checksum
-        var checksum: UInt8 = 0
-        for i in 1..<command.count {
-            checksum ^= command[i]
-        }
-        command.append(checksum)
-        command.append(0xF2) // Stop frame
-
-        peripheral.writeValue(command, for: characteristic, type: .withResponse)
-        print("BLE: Reset PM5 to idle")
+        sendResetCommand(peripheral: peripheral, characteristic: characteristic)
     }
 
     private func cleanup() {
