@@ -21,7 +21,7 @@ struct MainTabView: View {
                         networkService: networkService,
                         currentUserId: authService.userProfile?.oderId ?? ""
                     )
-                } else if raceService.raceState.isRacing {
+                } else if raceService.raceState.isActive {
                     RaceView(
                         raceService: raceService,
                         bleManager: bleManager,
@@ -80,9 +80,12 @@ struct MainTabView: View {
         // Handle countdown events from Socket.IO
         networkService.onCountdown = { [weak raceService, weak bleManager, weak networkService] seconds in
             Task { @MainActor in
+                print("Countdown received: \(seconds)")
+
                 // Configure PM5 and reset metrics when countdown starts (first countdown event)
                 if raceService?.countdown == nil,
                    let targetDistance = networkService?.currentRace?.targetDistance {
+                    print("First countdown - configuring PM5 for \(targetDistance)m")
                     // Reset metrics from previous race
                     bleManager?.resetMetrics()
                     // Configure PM5 with the race distance
@@ -90,11 +93,8 @@ struct MainTabView: View {
                 }
 
                 raceService?.countdown = seconds
-                if case .inLobby = raceService?.raceState {
-                    raceService?.raceState = .countdown(seconds: seconds)
-                } else if case .countdown = raceService?.raceState {
-                    raceService?.raceState = .countdown(seconds: seconds)
-                }
+                // Always set countdown state regardless of current state
+                raceService?.raceState = .countdown(seconds: seconds)
             }
         }
 

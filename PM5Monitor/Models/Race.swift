@@ -91,6 +91,20 @@ enum RaceState: Equatable {
         return false
     }
 
+    var isCountingDown: Bool {
+        if case .countdown = self { return true }
+        return false
+    }
+
+    var isActive: Bool {
+        switch self {
+        case .countdown, .racing:
+            return true
+        default:
+            return false
+        }
+    }
+
     var isInLobby: Bool {
         if case .inLobby = self { return true }
         return false
