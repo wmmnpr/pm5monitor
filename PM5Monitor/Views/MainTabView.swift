@@ -327,6 +327,7 @@ struct MultiRacerLaneView: View {
                         isMe: isMe,
                         distance: distance,
                         pace: pace,
+                        targetDistance: targetDistance,
                         xPosition: xPosition,
                         yPosition: yPosition
                     )
@@ -370,6 +371,7 @@ struct RacerIconView: View {
     let isMe: Bool
     let distance: Double
     let pace: Double
+    let targetDistance: Double
     let xPosition: CGFloat
     let yPosition: CGFloat
 
@@ -388,8 +390,12 @@ struct RacerIconView: View {
         return String(format: "%d:%02d", minutes, seconds)
     }
 
-    private var formattedDistance: String {
-        return "\(Int(distance))m"
+    private var remainingDistance: Int {
+        max(0, Int(targetDistance - distance))
+    }
+
+    private var formattedRemaining: String {
+        return "\(remainingDistance)m"
     }
 
     var body: some View {
@@ -412,7 +418,7 @@ struct RacerIconView: View {
                         .foregroundColor(.white)
 
                     HStack(spacing: 6) {
-                        Text(formattedDistance)
+                        Text(formattedRemaining)
                             .font(.system(size: 9, weight: .semibold, design: .monospaced))
                             .foregroundColor(.yellow)
 

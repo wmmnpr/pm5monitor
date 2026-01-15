@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct RaceView: View {
     @ObservedObject var raceService: RaceService
@@ -8,6 +9,9 @@ struct RaceView: View {
 
     @Environment(\.scenePhase) private var scenePhase
     @State private var previousMetrics: RowingMetrics?
+    @State private var raceStartTime: Date?
+    @State private var elapsedTime: TimeInterval = 0
+    @State private var timer: Timer?
 
     private var targetDistance: Int {
         networkService.currentRace?.targetDistance ?? raceService.currentRace?.targetDistance ?? 2000
@@ -33,6 +37,13 @@ struct RaceView: View {
         }
     }
 
+    private var isRaceFinished: Bool {
+        if case .finished = raceService.raceState {
+            return true
+        }
+        return false
+    }
+
     var body: some View {
         GeometryReader { geometry in
             ZStack {
@@ -40,14 +51,14 @@ struct RaceView: View {
                 Color.black.ignoresSafeArea()
 
                 VStack(spacing: 0) {
-                    // Race info header
+                    // Race info header - use player's race time
                     RaceInfoHeader(
                         targetDistance: targetDistance,
                         entryFee: formattedEntryFee,
-                        elapsedTime: bleManager.currentMetrics.elapsedTime
+                        elapsedTime: elapsedTime
                     )
 
-                    // Race lanes - fills remaining space
+                    // Race lanes - fills remaining space with safe area padding for notch
                     if !serverParticipants.isEmpty {
                         MultiRacerLaneView(
                             participants: serverParticipants,
@@ -55,7 +66,8 @@ struct RaceView: View {
                             currentUserDistance: bleManager.currentMetrics.distance,
                             targetDistance: Double(targetDistance)
                         )
-                        .padding(.horizontal, 16)
+                        .padding(.leading, geometry.safeAreaInsets.leading + 16)
+                        .padding(.trailing, geometry.safeAreaInsets.trailing + 16)
                         .padding(.bottom, 16)
                     } else {
                         RaceTrackView(
@@ -64,7 +76,8 @@ struct RaceView: View {
                             targetDistance: Double(targetDistance),
                             myEquipmentType: raceService.myEquipmentType
                         )
-                        .padding(.horizontal, 16)
+                        .padding(.leading, geometry.safeAreaInsets.leading + 16)
+                        .padding(.trailing, geometry.safeAreaInsets.trailing + 16)
                         .padding(.bottom, 16)
                     }
                 }
@@ -82,34 +95,54 @@ struct RaceView: View {
         }
         .ignoresSafeArea()
         .onAppear {
-            // Force landscape orientation
             setLandscapeOrientation()
         }
         .onDisappear {
-            // Restore portrait orientation
+            stopTimer()
             restorePortraitOrientation()
         }
         .onChange(of: scenePhase) { newPhase in
-            // Re-apply landscape when returning from background
             if newPhase == .active {
                 setLandscapeOrientation()
+            }
+        }
+        .onChange(of: raceService.raceState) { newState in
+            if case .racing = newState {
+                startRaceTimer()
+            } else if case .finished = newState {
+                stopTimer()
             }
         }
         .onChange(of: bleManager.currentMetrics) { newMetrics in
             sendUpdate(metrics: newMetrics)
         }
+        .supportedOrientations(.landscape)
+    }
+
+    private func startRaceTimer() {
+        guard raceStartTime == nil else { return }
+        raceStartTime = Date()
+        elapsedTime = 0
+        timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
+            if let start = raceStartTime, !isRaceFinished {
+                elapsedTime = Date().timeIntervalSince(start)
+            }
+        }
+    }
+
+    private func stopTimer() {
+        timer?.invalidate()
+        timer = nil
     }
 
     private func setLandscapeOrientation() {
         guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene else { return }
         windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: .landscape))
-        UIViewController.attemptRotationToDeviceOrientation()
     }
 
     private func restorePortraitOrientation() {
         guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene else { return }
         windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: .portrait))
-        UIViewController.attemptRotationToDeviceOrientation()
     }
 
     private func sendUpdate(metrics: RowingMetrics) {
@@ -677,6 +710,45 @@ struct RaceFinishedOverlay: View {
         case 3: return "medal.fill"
         default: return "checkmark.circle.fill"
         }
+    }
+}
+
+// MARK: - Orientation Lock Modifier
+
+struct SupportedOrientationsModifier: ViewModifier {
+    let orientations: UIInterfaceOrientationMask
+
+    func body(content: Content) -> some View {
+        content
+            .onAppear {
+                OrientationManager.shared.lock(orientations)
+            }
+            .onDisappear {
+                OrientationManager.shared.unlock()
+            }
+    }
+}
+
+extension View {
+    func supportedOrientations(_ orientations: UIInterfaceOrientationMask) -> some View {
+        modifier(SupportedOrientationsModifier(orientations: orientations))
+    }
+}
+
+class OrientationManager {
+    static let shared = OrientationManager()
+    var lockedOrientation: UIInterfaceOrientationMask?
+
+    func lock(_ orientation: UIInterfaceOrientationMask) {
+        lockedOrientation = orientation
+        // Force update
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+            windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: orientation))
+        }
+    }
+
+    func unlock() {
+        lockedOrientation = nil
     }
 }
 
