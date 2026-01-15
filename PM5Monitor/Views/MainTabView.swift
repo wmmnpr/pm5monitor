@@ -78,8 +78,14 @@ struct MainTabView: View {
 
     private func setupNetworkCallbacks() {
         // Handle countdown events from Socket.IO
-        networkService.onCountdown = { [weak raceService] seconds in
+        networkService.onCountdown = { [weak raceService, weak bleManager, weak networkService] seconds in
             Task { @MainActor in
+                // Configure PM5 when countdown starts (first countdown event)
+                if raceService?.countdown == nil,
+                   let targetDistance = networkService?.currentRace?.targetDistance {
+                    bleManager?.configureWorkout(distance: targetDistance)
+                }
+
                 raceService?.countdown = seconds
                 if case .inLobby = raceService?.raceState {
                     raceService?.raceState = .countdown(seconds: seconds)
