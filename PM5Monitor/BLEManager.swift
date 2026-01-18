@@ -17,6 +17,10 @@ class BLEManager: NSObject, ObservableObject {
     /// Complete rowing metrics for racing
     @Published var currentMetrics = RowingMetrics()
 
+    /// Debug log for CSAFE commands
+    @Published var debugLog: [String] = []
+    private let maxLogEntries = 50
+
     // MARK: - PM5 UUIDs
 
     // PM5 Rowing Service
@@ -40,11 +44,11 @@ class BLEManager: NSObject, ObservableObject {
     // PM5 Control Service - for configuring workouts
     private let pm5ControlServiceUUID = CBUUID(string: "CE060020-43E5-11E4-916C-0800200C9A66")
 
-    // Control Receive characteristic - write commands to PM5
-    private let controlReceiveUUID = CBUUID(string: "CE060021-43E5-11E4-916C-0800200C9A66")
+    // Control Transmit characteristic - write commands to PM5
+    private let controlTransmitUUID = CBUUID(string: "CE060021-43E5-11E4-916C-0800200C9A66")
 
-    // Control Transmit characteristic - receive responses from PM5
-    private let controlTransmitUUID = CBUUID(string: "CE060022-43E5-11E4-916C-0800200C9A66")
+    // Control Receive characteristic - receive responses from PM5
+    private let controlReceiveUUID = CBUUID(string: "CE060022-43E5-11E4-916C-0800200C9A66")
 
     // MARK: - Private
 
@@ -104,10 +108,13 @@ class BLEManager: NSObject, ObservableObject {
     func configureWorkout(distance: Int) {
         guard let peripheral = connectedPeripheral,
               let characteristic = controlCharacteristic else {
-            print("BLE: Cannot configure workout - not connected or control not available")
+            let msg = "ERROR: Cannot configure - peripheral=\(connectedPeripheral != nil), control=\(controlCharacteristic != nil)"
+            print("BLE: \(msg)")
+            debugLog.append(msg)
             return
         }
 
+        debugLog.append("Configuring \(distance)m workout...")
         print("BLE: Starting workout configuration for \(distance)m")
 
         // Step 1: Reset to idle state
@@ -124,12 +131,22 @@ class BLEManager: NSObject, ObservableObject {
         }
     }
 
+    private func logCSAFE(_ message: String, frame: Data) {
+        let hex = frame.map { String(format: "%02X", $0) }.joined(separator: " ")
+        let entry = "\(message): \(hex)"
+        print("BLE: \(entry)")
+        debugLog.append(entry)
+        if debugLog.count > maxLogEntries {
+            debugLog.removeFirst()
+        }
+    }
+
     private func sendResetCommand(peripheral: CBPeripheral, characteristic: CBCharacteristic) {
         // CSAFE: GOFINISHED (0x86) + GOIDLE (0x87)
         var payload: [UInt8] = [0x86, 0x87]
         let frame = buildCSAFEFrame(payload: &payload)
         peripheral.writeValue(frame, for: characteristic, type: .withResponse)
-        print("BLE: Sent reset command: \(frame.map { String(format: "%02X", $0) }.joined(separator: " "))")
+        logCSAFE("RESET [86 87]", frame: frame)
     }
 
     private func sendDistanceCommand(distance: Int, peripheral: CBPeripheral, characteristic: CBCharacteristic) {
@@ -145,7 +162,7 @@ class BLEManager: NSObject, ObservableObject {
         ]
         let frame = buildCSAFEFrame(payload: &payload)
         peripheral.writeValue(frame, for: characteristic, type: .withResponse)
-        print("BLE: Sent distance command (\(distance)m): \(frame.map { String(format: "%02X", $0) }.joined(separator: " "))")
+        logCSAFE("DISTANCE \(distance)m", frame: frame)
     }
 
     private func sendReadyCommand(peripheral: CBPeripheral, characteristic: CBCharacteristic) {
@@ -153,7 +170,7 @@ class BLEManager: NSObject, ObservableObject {
         var payload: [UInt8] = [0x84]
         let frame = buildCSAFEFrame(payload: &payload)
         peripheral.writeValue(frame, for: characteristic, type: .withResponse)
-        print("BLE: Sent ready command: \(frame.map { String(format: "%02X", $0) }.joined(separator: " "))")
+        logCSAFE("READY [84]", frame: frame)
     }
 
     private func buildCSAFEFrame(payload: inout [UInt8]) -> Data {
@@ -162,9 +179,9 @@ class BLEManager: NSObject, ObservableObject {
         // Start flag
         frame.append(0xF1)
 
-        // Add payload with byte stuffing for bytes >= 0xF0
+        // Add payload with byte stuffing for special bytes 0xF0-0xF3
         for byte in payload {
-            if byte >= 0xF0 {
+            if byte >= 0xF0 && byte <= 0xF3 {
                 frame.append(0xF3)           // Stuff byte
                 frame.append(byte & 0x03)    // Lower 2 bits only
             } else {
@@ -179,7 +196,7 @@ class BLEManager: NSObject, ObservableObject {
         }
 
         // Add checksum with byte stuffing if needed
-        if checksum >= 0xF0 {
+        if checksum >= 0xF0 && checksum <= 0xF3 {
             frame.append(0xF3)
             frame.append(checksum & 0x03)
         } else {
@@ -247,6 +264,7 @@ extension BLEManager: CBCentralManagerDelegate {
         Task { @MainActor in
             isConnecting = false
             isConnected = true
+            debugLog.append("Connected to PM5")
             // Discover both rowing service and control service
             peripheral.discoverServices([pm5RowingServiceUUID, pm5ControlServiceUUID])
         }
@@ -299,9 +317,10 @@ extension BLEManager: CBPeripheralDelegate {
 
             for characteristic in characteristics {
                 // Store control characteristic for writing commands
-                if characteristic.uuid == controlReceiveUUID {
+                if characteristic.uuid == controlTransmitUUID {
                     controlCharacteristic = characteristic
                     print("BLE: Control characteristic discovered")
+                    debugLog.append("Control characteristic found (CE060021)")
                 }
 
                 // Subscribe to notifications

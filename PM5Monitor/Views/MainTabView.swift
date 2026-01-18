@@ -81,15 +81,22 @@ struct MainTabView: View {
         networkService.onCountdown = { [weak raceService, weak bleManager, weak networkService] seconds in
             Task { @MainActor in
                 print("Countdown received: \(seconds)")
+                bleManager?.debugLog.append("Countdown: \(seconds)s")
 
-                // Configure PM5 and reset metrics when countdown starts (first countdown event)
-                if raceService?.countdown == nil,
-                   let targetDistance = networkService?.currentRace?.targetDistance {
-                    print("First countdown - configuring PM5 for \(targetDistance)m")
+                // Configure PM5 on the highest countdown value (start of countdown)
+                // This handles both 5-second and 10-second countdowns
+                // Use race distance if available, otherwise fall back to lobby distance
+                let targetDistance = networkService?.currentRace?.targetDistance ?? networkService?.currentLobby?.raceDistance
+                if let distance = targetDistance,
+                   raceService?.countdown == nil || seconds > (raceService?.countdown ?? 0) {
+                    print("First countdown - configuring PM5 for \(distance)m")
+                    bleManager?.debugLog.append("Configuring PM5 for \(distance)m")
                     // Reset metrics from previous race
                     bleManager?.resetMetrics()
                     // Configure PM5 with the race distance
-                    bleManager?.configureWorkout(distance: targetDistance)
+                    bleManager?.configureWorkout(distance: distance)
+                } else if targetDistance == nil {
+                    bleManager?.debugLog.append("No race/lobby distance available")
                 }
 
                 raceService?.countdown = seconds
@@ -128,6 +135,7 @@ struct TrainingView: View {
     @ObservedObject var bleManager: BLEManager
     @ObservedObject var authService: AuthService
     @ObservedObject var networkService: NetworkService
+    @State private var showDebugLog = false
 
     var body: some View {
         NavigationStack {
@@ -165,10 +173,23 @@ struct TrainingView: View {
                     // Connection overlay
                     ConnectionOverlay(ble: bleManager)
                 }
+
+                // Debug log overlay
+                if showDebugLog {
+                    DebugLogView(logs: bleManager.debugLog)
+                }
             }
             .navigationTitle("Race")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        showDebugLog.toggle()
+                    } label: {
+                        Image(systemName: showDebugLog ? "terminal.fill" : "terminal")
+                            .foregroundColor(showDebugLog ? .cyan : .gray)
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         if bleManager.isConnected {
@@ -183,6 +204,46 @@ struct TrainingView: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Debug Log View
+
+struct DebugLogView: View {
+    let logs: [String]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("CSAFE Log")
+                .font(.caption)
+                .fontWeight(.bold)
+                .foregroundColor(.cyan)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 2) {
+                        ForEach(Array(logs.enumerated()), id: \.offset) { index, log in
+                            Text(log)
+                                .font(.system(size: 10, design: .monospaced))
+                                .foregroundColor(.green)
+                                .id(index)
+                        }
+                    }
+                    .padding(.horizontal, 8)
+                }
+                .onChange(of: logs.count) { _ in
+                    if let last = logs.indices.last {
+                        proxy.scrollTo(last, anchor: .bottom)
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: 150)
+        .background(Color.black.opacity(0.85))
+        .cornerRadius(8)
+        .padding()
     }
 }
 

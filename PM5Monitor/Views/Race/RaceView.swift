@@ -12,6 +12,7 @@ struct RaceView: View {
     @State private var raceStartTime: Date?
     @State private var elapsedTime: TimeInterval = 0
     @State private var timer: Timer?
+    @State private var showDebugLog = false
 
     private var targetDistance: Int {
         networkService.currentRace?.targetDistance ?? raceService.currentRace?.targetDistance ?? 2000
@@ -90,6 +91,34 @@ struct RaceView: View {
                 // Finish overlay
                 if case .finished(let position) = raceService.raceState {
                     RaceFinishedOverlay(position: position)
+                }
+
+                // Debug log overlay
+                if showDebugLog {
+                    VStack {
+                        Spacer()
+                        DebugLogView(logs: bleManager.debugLog)
+                    }
+                }
+
+                // Debug log toggle button
+                VStack {
+                    HStack {
+                        Button {
+                            showDebugLog.toggle()
+                        } label: {
+                            Image(systemName: showDebugLog ? "terminal.fill" : "terminal")
+                                .font(.title2)
+                                .foregroundColor(showDebugLog ? .cyan : .white.opacity(0.6))
+                                .padding(8)
+                                .background(Color.black.opacity(0.5))
+                                .cornerRadius(8)
+                        }
+                        .padding(.leading, 16)
+                        .padding(.top, 50)
+                        Spacer()
+                    }
+                    Spacer()
                 }
             }
         }
