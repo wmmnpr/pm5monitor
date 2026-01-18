@@ -117,17 +117,22 @@ class BLEManager: NSObject, ObservableObject {
         debugLog.append("Configuring \(distance)m workout...")
         print("BLE: Starting workout configuration for \(distance)m")
 
-        // Step 1: Reset to idle state
+        // Step 1: Reset to idle state (GOFINISHED + GOIDLE, takes ~0.2s)
         sendResetCommand(peripheral: peripheral, characteristic: characteristic)
 
-        // Step 2: Set the distance workout (after short delay)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+        // Step 2: Set the distance workout (after reset completes)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
             self?.sendDistanceCommand(distance: distance, peripheral: peripheral, characteristic: characteristic)
         }
 
-        // Step 3: Go to ready state (after another delay)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-            self?.sendReadyCommand(peripheral: peripheral, characteristic: characteristic)
+        // Step 3: Set program type
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
+            self?.sendSetProgramCommand(peripheral: peripheral, characteristic: characteristic)
+        }
+
+        // Step 4: Go in use
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in
+            self?.sendGoInUseCommand(peripheral: peripheral, characteristic: characteristic)
         }
     }
 
@@ -142,11 +147,19 @@ class BLEManager: NSObject, ObservableObject {
     }
 
     private func sendResetCommand(peripheral: CBPeripheral, characteristic: CBCharacteristic) {
-        // CSAFE: GOFINISHED (0x86) + GOIDLE (0x87)
-        var payload: [UInt8] = [0x86, 0x87]
-        let frame = buildCSAFEFrame(payload: &payload)
-        peripheral.writeValue(frame, for: characteristic, type: .withResponse)
-        logCSAFE("RESET [86 87]", frame: frame)
+        // Send GOFINISHED (0x86)
+        var finishedPayload: [UInt8] = [0x86]
+        let finishedFrame = buildCSAFEFrame(payload: &finishedPayload)
+        peripheral.writeValue(finishedFrame, for: characteristic, type: .withResponse)
+        logCSAFE("GOFINISHED [86]", frame: finishedFrame)
+
+        // Send GOIDLE (0x87) after a short delay
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+            var idlePayload: [UInt8] = [0x87]
+            let idleFrame = self?.buildCSAFEFrame(payload: &idlePayload) ?? Data()
+            peripheral.writeValue(idleFrame, for: characteristic, type: .withResponse)
+            self?.logCSAFE("GOIDLE [87]", frame: idleFrame)
+        }
     }
 
     private func sendDistanceCommand(distance: Int, peripheral: CBPeripheral, characteristic: CBCharacteristic) {
@@ -165,12 +178,21 @@ class BLEManager: NSObject, ObservableObject {
         logCSAFE("DISTANCE \(distance)m", frame: frame)
     }
 
-    private func sendReadyCommand(peripheral: CBPeripheral, characteristic: CBCharacteristic) {
-        // CSAFE_GOREADY_CMD (0x84) - Prepare PM5 for workout
-        var payload: [UInt8] = [0x84]
+    private func sendSetProgramCommand(peripheral: CBPeripheral, characteristic: CBCharacteristic) {
+        // CSAFE_SETPROGRAM_CMD (0x24) - Set program type
+        // Format: [cmd] [byte_count] [program] [reserved]
+        var payload: [UInt8] = [0x24, 0x02, 0x00, 0x00]
         let frame = buildCSAFEFrame(payload: &payload)
         peripheral.writeValue(frame, for: characteristic, type: .withResponse)
-        logCSAFE("READY [84]", frame: frame)
+        logCSAFE("SETPROGRAM [24 02 00 00]", frame: frame)
+    }
+
+    private func sendGoInUseCommand(peripheral: CBPeripheral, characteristic: CBCharacteristic) {
+        // CSAFE_GOINUSE_CMD (0x85) - Start the workout
+        var payload: [UInt8] = [0x85]
+        let frame = buildCSAFEFrame(payload: &payload)
+        peripheral.writeValue(frame, for: characteristic, type: .withResponse)
+        logCSAFE("GOINUSE [85]", frame: frame)
     }
 
     private func buildCSAFEFrame(payload: inout [UInt8]) -> Data {
