@@ -380,6 +380,13 @@ class NetworkService: ObservableObject {
         print("NetworkService: Disconnected")
     }
 
+    /// Clear race state without disconnecting (used after race completion)
+    func clearRaceState() {
+        currentRace = nil
+        currentLobby = nil
+        print("NetworkService: Race state cleared")
+    }
+
     // MARK: - Fallback Polling
 
     private func startPolling() {

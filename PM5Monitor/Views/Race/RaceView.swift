@@ -90,7 +90,13 @@ struct RaceView: View {
 
                 // Finish overlay
                 if case .finished(let position) = raceService.raceState {
-                    RaceFinishedOverlay(position: position)
+                    RaceFinishedOverlay(
+                        position: position,
+                        participants: serverParticipants
+                    ) {
+                        raceService.unsubscribe()
+                        networkService.clearRaceState()
+                    }
                 }
 
                 // Debug log overlay
@@ -661,46 +667,92 @@ struct CountdownOverlay: View {
 
 struct RaceFinishedOverlay: View {
     let position: Int
+    let participants: [ServerRaceParticipant]
+    let onDismiss: () -> Void
+
+    private var sortedParticipants: [ServerRaceParticipant] {
+        participants.sorted { p1, p2 in
+            // Sort by position (finished first), then by distance (for unfinished)
+            if let pos1 = p1.position, let pos2 = p2.position {
+                return pos1 < pos2
+            } else if p1.position != nil {
+                return true
+            } else if p2.position != nil {
+                return false
+            } else {
+                return p1.distance > p2.distance
+            }
+        }
+    }
 
     var body: some View {
         ZStack {
-            Color.black.opacity(0.9)
+            Color.black.opacity(0.95)
                 .ignoresSafeArea()
 
-            VStack(spacing: 24) {
-                // Medal/trophy icon
-                Image(systemName: medalIcon)
-                    .font(.system(size: 80))
-                    .foregroundColor(positionColor)
+            VStack(spacing: 16) {
+                // Header with user's position
+                HStack(spacing: 16) {
+                    Image(systemName: medalIcon)
+                        .font(.system(size: 40))
+                        .foregroundColor(positionColor)
 
-                // Position
-                Text(positionText)
-                    .font(.system(size: 72, weight: .bold))
-                    .foregroundColor(positionColor)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(positionText)
+                            .font(.system(size: 36, weight: .bold))
+                            .foregroundColor(positionColor)
+                        Text(positionLabel)
+                            .font(.headline)
+                            .foregroundColor(.white.opacity(0.8))
+                    }
 
-                Text(positionLabel)
-                    .font(.title)
-                    .foregroundColor(.white)
+                    Spacer()
 
-                if position <= 3 {
-                    Text("Prize pool distributed!")
-                        .font(.subheadline)
-                        .foregroundColor(.green)
+                    if position <= 3 {
+                        Text("Prize pool distributed!")
+                            .font(.caption)
+                            .foregroundColor(.green)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(Color.green.opacity(0.2))
+                            .cornerRadius(8)
+                    }
+                }
+                .padding(.horizontal, 24)
+                .padding(.top, 20)
+
+                // Results header
+                Text("RACE RESULTS")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(.white.opacity(0.6))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 24)
+                    .padding(.top, 8)
+
+                // Results list
+                ScrollView {
+                    VStack(spacing: 8) {
+                        ForEach(sortedParticipants) { participant in
+                            ParticipantResultRow(participant: participant)
+                        }
+                    }
+                    .padding(.horizontal, 24)
                 }
 
-                Spacer()
-                    .frame(height: 40)
-
+                // Return home button
                 Button {
-                    // Navigate back to results
+                    onDismiss()
                 } label: {
-                    Text("View Results")
+                    Text("Return Home")
                         .font(.headline)
                         .foregroundColor(.black)
-                        .frame(width: 200, height: 50)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
                         .background(Color.white)
                         .cornerRadius(25)
                 }
+                .padding(.horizontal, 24)
+                .padding(.bottom, 20)
             }
         }
     }
@@ -739,6 +791,99 @@ struct RaceFinishedOverlay: View {
         case 3: return "medal.fill"
         default: return "checkmark.circle.fill"
         }
+    }
+}
+
+// MARK: - Participant Result Row
+
+struct ParticipantResultRow: View {
+    let participant: ServerRaceParticipant
+
+    var body: some View {
+        HStack(spacing: 12) {
+            // Position
+            ZStack {
+                Circle()
+                    .fill(positionColor.opacity(0.2))
+                    .frame(width: 36, height: 36)
+                Text(positionText)
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(positionColor)
+            }
+
+            // Name and bot indicator
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(participant.displayName)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.white)
+                    if participant.isBot == true {
+                        Text("BOT")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundColor(.cyan)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 2)
+                            .background(Color.cyan.opacity(0.2))
+                            .cornerRadius(4)
+                    }
+                }
+                // Pace
+                Text(formattedPace)
+                    .font(.system(size: 12))
+                    .foregroundColor(.white.opacity(0.5))
+            }
+
+            Spacer()
+
+            // Finish time
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(formattedFinishTime)
+                    .font(.system(size: 18, weight: .semibold, design: .monospaced))
+                    .foregroundColor(participant.isFinished ? .white : .white.opacity(0.5))
+                // Watts
+                Text("\(participant.watts)W")
+                    .font(.system(size: 12))
+                    .foregroundColor(.white.opacity(0.5))
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Color.white.opacity(0.05))
+        .cornerRadius(12)
+    }
+
+    private var positionText: String {
+        if let pos = participant.position {
+            return "\(pos)"
+        }
+        return "-"
+    }
+
+    private var positionColor: Color {
+        switch participant.position {
+        case 1: return .yellow
+        case 2: return Color(.systemGray)
+        case 3: return .orange
+        default: return .white.opacity(0.6)
+        }
+    }
+
+    private var formattedFinishTime: String {
+        guard let finishTimeMs = participant.finishTime else {
+            return "--:--.-"
+        }
+        let totalSeconds = finishTimeMs / 1000.0
+        let minutes = Int(totalSeconds) / 60
+        let seconds = totalSeconds.truncatingRemainder(dividingBy: 60)
+        return String(format: "%d:%05.2f", minutes, seconds)
+    }
+
+    private var formattedPace: String {
+        let paceSeconds = participant.pace
+        if paceSeconds <= 0 { return "-:--/500m" }
+        let minutes = Int(paceSeconds) / 60
+        let seconds = Int(paceSeconds) % 60
+        return String(format: "%d:%02d/500m", minutes, seconds)
     }
 }
 
