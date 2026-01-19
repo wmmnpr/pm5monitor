@@ -231,7 +231,7 @@ function updateRaceParticipant(raceId, oderId, metrics) {
 }
 
 function simulateBots(race) {
-  if (!race || race.status !== 'active') return;
+  if (!race || race.status !== 'racing') return;
 
   const elapsedMs = Date.now() - race.startTime;
   const elapsedSec = elapsedMs / 1000;
@@ -245,7 +245,9 @@ function simulateBots(race) {
     const variance = (Math.random() - 0.5) * 0.2;
     const speed = config.speedMetersPerSec * (1 + variance);
 
-    p.distance = Math.min(elapsedSec * speed, race.targetDistance);
+    // Ensure distance never decreases (variance could otherwise cause backwards movement)
+    const newDistance = Math.min(elapsedSec * speed, race.targetDistance);
+    p.distance = Math.max(p.distance, newDistance);
     p.pace = config.avgPace + (Math.random() - 0.5) * config.paceVariance;
     p.watts = Math.round(config.avgWatts + (Math.random() - 0.5) * config.wattsVariance);
 

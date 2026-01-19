@@ -99,3 +99,68 @@ fly deploy
 - `PORT` - Server port (default: 3000)
 
 ngrok config add-authtoken 301DbsQq2EhNuNEMOtqjUZUfWew_38F3sU5xoPp5TEQ8ZP7T5
+
+
+flutter: INFO: 2026-01-18 10:01:42.539989: service: 1826 <==> 2ad1
+2026-01-18 10:01:44.407 ergpm_diagnostics[91138:16239653] [FBP-iOS] handleMethodCall: stopScan
+flutter: INFO: 2026-01-18 10:01:55.421232: sending csafe command: f18686f2
+flutter: INFO: 2026-01-18 10:01:55.574135: sending csafe command: f18787f2
+flutter: INFO: 2026-01-18 10:01:55.753547: sending csafe command: f1210301002201f2
+flutter: INFO: 2026-01-18 10:01:55.936908: sending csafe command: f11a0705058064000000f9f2
+flutter: INFO: 2026-01-18 10:01:56.112869: sending csafe command: f12402000026f2c9a66
+flutter: INFO: 2026-01-18 10:01:56.295543: sending csafe command: f18585f2
+
+
+
+0xfe69e8fa8b2f54193a0c2e99e7bdd886a7be1141
+
+
+
+⏺ Based on my exploration, this codebase has extensive Ethereum integration for race-based prize distribution. Here's how it works:                                                      
+                                                                                                                                                                                         
+  Smart Contract: RaceEscrow.sol                                                                                                                                                         
+                                                                                                                                                                                         
+  The core blockchain logic is in Contracts/RaceEscrow.sol. It's an escrow system using USDC (not raw ETH) for stability:                                                                
+                                                                                                                                                                                         
+  - Prize Distribution: Called via distributePrizes() after race completion                                                                                                              
+  - Payout Modes:                                                                                                                                                                        
+    - WINNER_TAKES_ALL - 1st place gets entire pool                                                                                                                                      
+    - TOP_THREE - 60% / 30% / 10% split                                                                                                                                                  
+  - Platform Fee: 5% deducted from prize pools                                                                                                                                           
+                                                                                                                                                                                         
+  iOS Wallet Integration                                                                                                                                                                 
+                                                                                                                                                                                         
+  WalletService.swift handles Ethereum interactions:                                                                                                                                     
+  - WalletConnect integration (using ReownAppKit)                                                                                                                                        
+  - Configured for Sepolia testnet (chain ID 11155111)                                                                                                                                   
+  - Methods: depositToEscrow(), refreshBalance(), fetchETHBalance()                                                                                                                      
+  - Transaction building with buildDepositCallData()                                                                                                                                     
+                                                                                                                                                                                         
+  Race Result & Payout Tracking                                                                                                                                                          
+                                                                                                                                                                                         
+  Race.swift defines:                                                                                                                                                                    
+  struct RaceResult {                                                                                                                                                                    
+      let payout: String       // Prize in wei                                                                                                                                           
+      let walletAddress: String                                                                                                                                                          
+      var payoutETH: Double    // Computed conversion                                                                                                                                    
+  }                                                                                                                                                                                      
+                                                                                                                                                                                         
+  Lobby.swift tracks:                                                                                                                                                                    
+  - entryFee (stored as wei string)                                                                                                                                                      
+  - escrowTxHash - contract transaction reference                                                                                                                                        
+  - prizePoolETH - calculated after 5% fee                                                                                                                                               
+                                                                                                                                                                                         
+  UserProfile.swift tracks:                                                                                                                                                              
+  - walletAddress - linked Ethereum address                                                                                                                                              
+  - totalEarnings - cumulative winnings in wei                                                                                                                                           
+                                                                                                                                                                                         
+  Current State                                                                                                                                                                          
+                                                                                                                                                                                         
+  The implementation is partially complete:                                                                                                                                              
+  1. Smart contract is fully written with security patterns (ReentrancyGuard, Pausable)                                                                                                  
+  2. UI for wallet management exists in WalletView.swift                                                                                                                                 
+  3. WalletConnect connection flow is stubbed but not fully wired up                                                                                                                     
+  4. Transaction signing logic is commented out pending full integration                                                                                                                 
+                                                                                                                                                                                         
+  The flow after race completion would be: race results → distributePrizes() called on contract → winners receive USDC to their linked wallet addresses → payoutTxHash stored for        
+  reference.   
