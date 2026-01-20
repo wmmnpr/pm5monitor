@@ -88,11 +88,31 @@ function createLobby(data) {
 
 function getLobbyList() {
   return Array.from(lobbies.values())
-    .filter(l => l.status === 'waiting')
+    .filter(l => l.status === 'waiting' || l.status === 'completed')
     .map(l => ({
       ...l,
       participantCount: l.participants.length
     }));
+}
+
+function completeRace(lobbyId, race) {
+  const lobby = lobbies.get(lobbyId);
+  if (lobby) {
+    lobby.status = 'completed';
+    lobby.raceId = race.id;
+    lobby.raceResults = race.participants.map(p => ({
+      oderId: p.oderId,
+      displayName: p.displayName,
+      position: p.position,
+      finishTime: p.finishTime,
+      distance: p.distance,
+      pace: p.pace,
+      watts: p.watts,
+      isBot: p.isBot,
+      isFinished: p.isFinished
+    }));
+  }
+  return lobby;
 }
 
 function addParticipant(lobbyId, participant) {
@@ -364,10 +384,8 @@ io.on('connection', (socket) => {
             if (allFinished) {
               race.status = 'completed';
               clearInterval(botInterval);
+              completeRace(lobbyId, race);
               io.to(`lobby:${lobbyId}`).emit('raceCompleted', race);
-
-              // Clean up lobby
-              lobbies.delete(lobbyId);
               io.emit('lobbyList', getLobbyList());
             }
           }, 500); // Update every 500ms
@@ -388,8 +406,8 @@ io.on('connection', (socket) => {
       const allFinished = race.participants.every(p => p.isFinished);
       if (allFinished && race.status === 'racing') {
         race.status = 'completed';
+        completeRace(race.lobbyId, race);
         io.to(`lobby:${race.lobbyId}`).emit('raceCompleted', race);
-        lobbies.delete(race.lobbyId);
         io.emit('lobbyList', getLobbyList());
       }
     }
@@ -505,8 +523,8 @@ app.post('/api/lobby/:id/start', (req, res) => {
           if (allFinished) {
             race.status = 'completed';
             clearInterval(botInterval);
+            completeRace(lobbyId, race);
             io.to(`lobby:${lobbyId}`).emit('raceCompleted', race);
-            lobbies.delete(lobbyId);
             io.emit('lobbyList', getLobbyList());
           }
         }, 500);
@@ -529,8 +547,8 @@ app.post('/api/race/:id/update', (req, res) => {
     const allFinished = race.participants.every(p => p.isFinished);
     if (allFinished && race.status === 'racing') {
       race.status = 'completed';
+      completeRace(race.lobbyId, race);
       io.to(`lobby:${race.lobbyId}`).emit('raceCompleted', race);
-      lobbies.delete(race.lobbyId);
       io.emit('lobbyList', getLobbyList());
     }
 

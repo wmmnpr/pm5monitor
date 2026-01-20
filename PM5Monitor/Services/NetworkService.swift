@@ -801,10 +801,30 @@ struct ServerLobby: Codable, Identifiable {
     let createdAt: String
     var participants: [ServerParticipant]
     var participantCount: Int?
+    var raceId: String?
+    var raceResults: [ServerRaceResult]?
 
     var displayParticipantCount: Int {
         participantCount ?? participants.count
     }
+
+    var isCompleted: Bool {
+        status == "completed"
+    }
+}
+
+struct ServerRaceResult: Codable, Identifiable {
+    let oderId: String
+    let displayName: String
+    var position: Int?
+    var finishTime: Double?
+    var distance: Double
+    var pace: Double
+    var watts: Int
+    var isBot: Bool?
+    var isFinished: Bool
+
+    var id: String { oderId }
 }
 
 struct ServerParticipant: Codable, Identifiable {

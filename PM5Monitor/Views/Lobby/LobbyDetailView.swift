@@ -4,6 +4,7 @@ struct LobbyDetailView: View {
     let lobby: Lobby
     @ObservedObject var lobbyService: LobbyService
     @ObservedObject var authService: AuthService
+    @ObservedObject var networkService: NetworkService
     @StateObject private var walletService = WalletService()
 
     @State private var isJoining = false
@@ -28,34 +29,37 @@ struct LobbyDetailView: View {
                 // Prize pool info
                 PrizePoolCard(lobby: lobby)
 
-                // Participants list
+                // Participants list / Race results
                 ParticipantsCard(
                     participants: lobbyService.participants,
-                    maxParticipants: lobby.maxParticipants
+                    maxParticipants: lobby.maxParticipants,
+                    lobby: lobby
                 )
 
-                // Add Bot section (for creator or when in lobby)
-                if hasJoined && lobbyService.participants.count < lobby.maxParticipants {
+                // Add Bot section (for creator or when in lobby, not for completed races)
+                if !lobby.isCompleted && hasJoined && lobbyService.participants.count < lobby.maxParticipants {
                     AddBotCard(onAddBot: { difficulty in
                         addBot(difficulty: difficulty)
                     })
                 }
 
-                // Equipment selection (when not joined)
-                if !hasJoined {
+                // Equipment selection (when not joined, not for completed races)
+                if !lobby.isCompleted && !hasJoined {
                     EquipmentSelectionCard(selectedEquipment: $selectedEquipment)
                 }
 
-                // Action buttons
-                ActionButtonsSection(
-                    lobby: lobby,
-                    hasJoined: hasJoined,
-                    isReady: isReady,
-                    isJoining: isJoining,
-                    onJoin: joinLobby,
-                    onReady: markReady,
-                    onLeave: leaveLobby
-                )
+                // Action buttons (hide for completed races)
+                if !lobby.isCompleted {
+                    ActionButtonsSection(
+                        lobby: lobby,
+                        hasJoined: hasJoined,
+                        isReady: isReady,
+                        isJoining: isJoining,
+                        onJoin: joinLobby,
+                        onReady: markReady,
+                        onLeave: leaveLobby
+                    )
+                }
             }
             .padding()
         }
@@ -352,18 +356,52 @@ struct PrizePoolCard: View {
 struct ParticipantsCard: View {
     let participants: [LobbyParticipant]
     let maxParticipants: Int
+    let lobby: Lobby
+
+    private var isRaceCompleted: Bool {
+        lobby.isCompleted
+    }
+
+    private var sortedRaceResults: [LobbyRaceResult] {
+        guard let results = lobby.raceResults else { return [] }
+        return results.sorted { p1, p2 in
+            if let pos1 = p1.position, let pos2 = p2.position {
+                return pos1 < pos2
+            } else if p1.position != nil {
+                return true
+            } else if p2.position != nil {
+                return false
+            }
+            return p1.distance > p2.distance
+        }
+    }
 
     var body: some View {
         VStack(spacing: 16) {
             HStack {
-                Text("Participants")
+                Text(isRaceCompleted ? "Race Results" : "Participants")
                     .font(.headline)
                 Spacer()
-                Text("\(participants.count)/\(maxParticipants)")
-                    .foregroundColor(.secondary)
+                if isRaceCompleted {
+                    Text("Completed")
+                        .font(.caption)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.green.opacity(0.2))
+                        .foregroundColor(.green)
+                        .cornerRadius(8)
+                } else {
+                    Text("\(participants.count)/\(maxParticipants)")
+                        .foregroundColor(.secondary)
+                }
             }
 
-            if participants.isEmpty {
+            if isRaceCompleted && !sortedRaceResults.isEmpty {
+                // Show race results
+                ForEach(sortedRaceResults) { result in
+                    LobbyRaceResultRow(result: result)
+                }
+            } else if participants.isEmpty {
                 Text("No participants yet")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
@@ -405,6 +443,75 @@ struct ParticipantsCard: View {
         case .rower: return .cyan
         case .bike: return .orange
         case .ski: return .purple
+        }
+    }
+}
+
+// MARK: - Lobby Race Result Row
+
+struct LobbyRaceResultRow: View {
+    let result: LobbyRaceResult
+
+    var body: some View {
+        HStack(spacing: 12) {
+            // Position badge
+            ZStack {
+                Circle()
+                    .fill(positionColor.opacity(0.2))
+                    .frame(width: 36, height: 36)
+                Text(positionText)
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(positionColor)
+            }
+
+            // Name and bot indicator
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(result.displayName)
+                        .font(.subheadline.weight(.medium))
+                    if result.isBot == true {
+                        Text("BOT")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundColor(.cyan)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 2)
+                            .background(Color.cyan.opacity(0.2))
+                            .cornerRadius(4)
+                    }
+                }
+                Text(result.formattedPace)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            Spacer()
+
+            // Finish time
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(result.formattedFinishTime)
+                    .font(.system(size: 16, weight: .semibold, design: .monospaced))
+                    .foregroundColor(result.isFinished ? .primary : .secondary)
+                Text("\(result.watts)W")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    private var positionText: String {
+        if let pos = result.position {
+            return "\(pos)"
+        }
+        return "-"
+    }
+
+    private var positionColor: Color {
+        switch result.position {
+        case 1: return .yellow
+        case 2: return .gray
+        case 3: return .orange
+        default: return .secondary
         }
     }
 }
@@ -634,7 +741,8 @@ struct ActionButtonsSection: View {
                 participantCount: 3
             ),
             lobbyService: LobbyService(),
-            authService: AuthService()
+            authService: AuthService(),
+            networkService: NetworkService.shared
         )
     }
 }

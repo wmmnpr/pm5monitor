@@ -233,7 +233,21 @@ class LobbyService: ObservableObject {
     // MARK: - Conversion Helpers
 
     private func convertServerLobby(_ server: ServerLobby) -> Lobby {
-        Lobby(
+        let raceResults: [LobbyRaceResult]? = server.raceResults?.map { result in
+            LobbyRaceResult(
+                oderId: result.oderId,
+                displayName: result.displayName,
+                position: result.position,
+                finishTime: result.finishTime,
+                distance: result.distance,
+                pace: result.pace,
+                watts: result.watts,
+                isBot: result.isBot,
+                isFinished: result.isFinished
+            )
+        }
+
+        return Lobby(
             id: server.id,
             creatorId: server.creatorId,
             raceDistance: server.raceDistance,
@@ -242,7 +256,8 @@ class LobbyService: ObservableObject {
             status: LobbyStatus(rawValue: server.status) ?? .waiting,
             maxParticipants: server.maxParticipants,
             minParticipants: server.minParticipants,
-            participantCount: server.displayParticipantCount
+            participantCount: server.displayParticipantCount,
+            raceResults: raceResults
         )
     }
 

@@ -46,6 +46,7 @@ struct Lobby: Codable, Identifiable {
     var startedAt: Date?
     var completedAt: Date?
     var escrowTxHash: String?
+    var raceResults: [LobbyRaceResult]?
 
     /// Number of current participants
     var participantCount: Int = 0
@@ -61,7 +62,8 @@ struct Lobby: Codable, Identifiable {
         minParticipants: Int = 2,
         skillRange: SkillRange? = nil,
         createdAt: Date = Date(),
-        participantCount: Int = 0
+        participantCount: Int = 0,
+        raceResults: [LobbyRaceResult]? = nil
     ) {
         self.id = id
         self.creatorId = creatorId
@@ -74,6 +76,11 @@ struct Lobby: Codable, Identifiable {
         self.skillRange = skillRange
         self.createdAt = createdAt
         self.participantCount = participantCount
+        self.raceResults = raceResults
+    }
+
+    var isCompleted: Bool {
+        status == .completed
     }
 
     /// Race distance as enum
@@ -150,6 +157,38 @@ enum ParticipantStatus: String, Codable {
     case racing = "racing"
     case finished = "finished"
     case disconnected = "disconnected"
+}
+
+/// Race result for a participant (stored on completed lobbies)
+struct LobbyRaceResult: Codable, Identifiable {
+    let oderId: String
+    let displayName: String
+    var position: Int?
+    var finishTime: Double? // milliseconds
+    var distance: Double
+    var pace: Double
+    var watts: Int
+    var isBot: Bool?
+    var isFinished: Bool
+
+    var id: String { oderId }
+
+    var formattedFinishTime: String {
+        guard let finishTimeMs = finishTime else {
+            return "--:--.-"
+        }
+        let totalSeconds = finishTimeMs / 1000.0
+        let minutes = Int(totalSeconds) / 60
+        let seconds = totalSeconds.truncatingRemainder(dividingBy: 60)
+        return String(format: "%d:%05.2f", minutes, seconds)
+    }
+
+    var formattedPace: String {
+        if pace <= 0 { return "-:--/500m" }
+        let minutes = Int(pace) / 60
+        let seconds = Int(pace) % 60
+        return String(format: "%d:%02d/500m", minutes, seconds)
+    }
 }
 
 // MARK: - Entry Fee Presets (ETH)

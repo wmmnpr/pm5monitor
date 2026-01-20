@@ -22,7 +22,8 @@ struct LobbyListView: View {
                     // Available lobbies
                     LobbiesSection(
                         lobbyService: lobbyService,
-                        authService: authService
+                        authService: authService,
+                        networkService: NetworkService.shared
                     )
                 }
                 .padding()
@@ -173,11 +174,12 @@ struct QuickMatchRow: View {
 struct LobbiesSection: View {
     @ObservedObject var lobbyService: LobbyService
     @ObservedObject var authService: AuthService
+    @ObservedObject var networkService: NetworkService
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
-                Text("Open Lobbies")
+                Text("Lobbies")
                     .font(.headline)
                 Spacer()
                 Text("\(lobbyService.availableLobbies.count) available")
@@ -194,7 +196,8 @@ struct LobbiesSection: View {
                             LobbyDetailView(
                                 lobby: lobby,
                                 lobbyService: lobbyService,
-                                authService: authService
+                                authService: authService,
+                                networkService: networkService
                             )
                         } label: {
                             LobbyRow(lobby: lobby)
@@ -265,6 +268,15 @@ struct LobbyRow: View {
             }
 
             Spacer()
+
+            // Status badge
+            Text(lobby.isCompleted ? "Completed" : "Open")
+                .font(.caption.weight(.medium))
+                .foregroundColor(lobby.isCompleted ? .green : .orange)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(lobby.isCompleted ? Color.green.opacity(0.15) : Color.orange.opacity(0.15))
+                .cornerRadius(6)
 
             Image(systemName: "chevron.right")
                 .font(.caption)
