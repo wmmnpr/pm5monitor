@@ -163,6 +163,7 @@ enum ParticipantStatus: String, Codable {
 struct LobbyRaceResult: Codable, Identifiable {
     let oderId: String
     let displayName: String
+    var walletAddress: String?
     var position: Int?
     var finishTime: Double? // milliseconds
     var distance: Double

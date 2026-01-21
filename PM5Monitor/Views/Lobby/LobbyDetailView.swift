@@ -451,6 +451,17 @@ struct ParticipantsCard: View {
 
 struct LobbyRaceResultRow: View {
     let result: LobbyRaceResult
+    @State private var showTipSheet = false
+
+    /// Whether this participant can receive tips (has valid wallet address)
+    private var canReceiveTip: Bool {
+        guard let walletAddress = result.walletAddress,
+              !walletAddress.isEmpty,
+              walletAddress.hasPrefix("0x") else {
+            return false
+        }
+        return true
+    }
 
     var body: some View {
         HStack(spacing: 12) {
@@ -486,6 +497,25 @@ struct LobbyRaceResultRow: View {
 
             Spacer()
 
+            // Tip button (only for non-bots with wallet addresses)
+            if canReceiveTip {
+                Button {
+                    showTipSheet = true
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "gift.fill")
+                            .font(.caption)
+                        Text("Tip")
+                            .font(.caption.weight(.medium))
+                    }
+                    .foregroundColor(.purple)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(Color.purple.opacity(0.15))
+                    .cornerRadius(8)
+                }
+            }
+
             // Finish time
             VStack(alignment: .trailing, spacing: 2) {
                 Text(result.formattedFinishTime)
@@ -497,6 +527,12 @@ struct LobbyRaceResultRow: View {
             }
         }
         .padding(.vertical, 4)
+        .sheet(isPresented: $showTipSheet) {
+            TipWinnerSheet(
+                recipientName: result.displayName,
+                walletAddress: result.walletAddress ?? ""
+            )
+        }
     }
 
     private var positionText: String {
@@ -513,6 +549,189 @@ struct LobbyRaceResultRow: View {
         case 3: return .orange
         default: return .secondary
         }
+    }
+}
+
+// MARK: - Tip Winner Sheet
+
+struct TipWinnerSheet: View {
+    let recipientName: String
+    let walletAddress: String
+    @Environment(\.dismiss) private var dismiss
+    @State private var tipAmount: String = "0.001"
+    @State private var showNoWalletsAlert = false
+
+    private let presetAmounts = ["0.001", "0.005", "0.01", "0.05"]
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 24) {
+                // Header
+                VStack(spacing: 8) {
+                    Image(systemName: "gift.circle.fill")
+                        .font(.system(size: 60))
+                        .foregroundColor(.purple)
+
+                    Text("Tip \(recipientName)")
+                        .font(.title2.weight(.bold))
+
+                    Text("Send ETH to congratulate them!")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                .padding(.top, 20)
+
+                // Wallet address
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Recipient Address")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    Text(walletAddress)
+                        .font(.system(size: 12, design: .monospaced))
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .padding()
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color(.tertiarySystemGroupedBackground))
+                        .cornerRadius(12)
+                }
+                .padding(.horizontal)
+
+                // Amount selection
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Tip Amount (ETH)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal)
+
+                    // Preset amounts
+                    HStack(spacing: 8) {
+                        ForEach(presetAmounts, id: \.self) { amount in
+                            Button {
+                                tipAmount = amount
+                            } label: {
+                                Text("\(amount)")
+                                    .font(.subheadline.weight(.medium))
+                                    .foregroundColor(tipAmount == amount ? .white : .purple)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 10)
+                                    .background(tipAmount == amount ? Color.purple : Color.purple.opacity(0.15))
+                                    .cornerRadius(10)
+                            }
+                        }
+                    }
+                    .padding(.horizontal)
+
+                    // Custom amount input
+                    TextField("Custom amount", text: $tipAmount)
+                        .keyboardType(.decimalPad)
+                        .font(.title3.weight(.semibold))
+                        .multilineTextAlignment(.center)
+                        .padding()
+                        .background(Color(.tertiarySystemGroupedBackground))
+                        .cornerRadius(12)
+                        .padding(.horizontal)
+                }
+
+                Spacer()
+
+                // Wallet buttons
+                VStack(spacing: 12) {
+                    Text("Open in Wallet")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    // Show available wallets
+                    let installedWallets = WalletDeepLinkService.installedWallets()
+
+                    if installedWallets.isEmpty {
+                        // No wallets installed - show generic options
+                        ForEach(WalletDeepLinkService.WalletApp.allCases) { wallet in
+                            WalletButton(
+                                wallet: wallet,
+                                isInstalled: false,
+                                action: {
+                                    openWallet(wallet)
+                                }
+                            )
+                        }
+                    } else {
+                        // Show installed wallets first
+                        ForEach(installedWallets) { wallet in
+                            WalletButton(
+                                wallet: wallet,
+                                isInstalled: true,
+                                action: {
+                                    openWallet(wallet)
+                                }
+                            )
+                        }
+                    }
+                }
+                .padding(.horizontal)
+                .padding(.bottom, 32)
+            }
+            .background(Color(.systemGroupedBackground))
+            .navigationTitle("Send Tip")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+    }
+
+    private func openWallet(_ wallet: WalletDeepLinkService.WalletApp) {
+        let amount = Double(tipAmount) ?? 0.001
+        WalletDeepLinkService.openWalletToSend(
+            wallet: wallet,
+            toAddress: walletAddress,
+            amount: amount
+        )
+    }
+}
+
+// MARK: - Wallet Button
+
+struct WalletButton: View {
+    let wallet: WalletDeepLinkService.WalletApp
+    let isInstalled: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack {
+                Image(systemName: wallet.iconName)
+                    .font(.title2)
+                    .foregroundColor(isInstalled ? .purple : .gray)
+                    .frame(width: 36)
+
+                Text(wallet.displayName)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundColor(isInstalled ? .primary : .secondary)
+
+                Spacer()
+
+                if isInstalled {
+                    Image(systemName: "arrow.up.forward.app.fill")
+                        .foregroundColor(.purple)
+                } else {
+                    Text("Not installed")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            .padding()
+            .background(Color(.secondarySystemGroupedBackground))
+            .cornerRadius(12)
+        }
+        .disabled(!isInstalled)
     }
 }
 

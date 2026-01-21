@@ -816,6 +816,7 @@ struct ServerLobby: Codable, Identifiable {
 struct ServerRaceResult: Codable, Identifiable {
     let oderId: String
     let displayName: String
+    var walletAddress: String?
     var position: Int?
     var finishTime: Double?
     var distance: Double

@@ -64,6 +64,10 @@ const BOT_NAMES = [
   'DeltaDrive', 'EpsilonErg', 'ZetaZoom', 'ThetaThrust', 'OmegaOar'
 ];
 
+// Configurable wallet address for bots (for testing tip functionality)
+// Set this to your own wallet address to receive test tips from bots
+const BOT_WALLET_ADDRESS = "0x985d1755e5b1bfda8168f7b89e7758e49d365b47";
+
 // ============================================
 // LOBBY MANAGEMENT
 // ============================================
@@ -103,6 +107,7 @@ function completeRace(lobbyId, race) {
     lobby.raceResults = race.participants.map(p => ({
       oderId: p.oderId,
       displayName: p.displayName,
+      walletAddress: p.walletAddress || "",
       position: p.position,
       finishTime: p.finishTime,
       distance: p.distance,
@@ -154,7 +159,7 @@ function addBot(lobbyId, difficulty) {
     id: botId,
     oderId: botId,
     displayName: `${botName} (${difficulty})`,
-    walletAddress: "",
+    walletAddress: BOT_WALLET_ADDRESS,
     equipmentType: randomEquipment,
     status: "ready",
     isBot: true,
@@ -211,6 +216,7 @@ function startRace(lobbyId) {
       id: p.id,
       oderId: p.oderId,
       displayName: p.displayName,
+      walletAddress: p.walletAddress || "",
       equipmentType: p.equipmentType,
       isBot: p.isBot,
       botDifficulty: p.botDifficulty,

@@ -237,6 +237,7 @@ class LobbyService: ObservableObject {
             LobbyRaceResult(
                 oderId: result.oderId,
                 displayName: result.displayName,
+                walletAddress: result.walletAddress,
                 position: result.position,
                 finishTime: result.finishTime,
                 distance: result.distance,
