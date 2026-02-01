@@ -8,7 +8,6 @@
 
 /* Begin PBXBuildFile section */
 		1CA2A3C14D0393DD190526AA /* WalletDeepLinkService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DD70A54E89F2A48ACCE0C96 /* WalletDeepLinkService.swift */; };
-		A10200 /* DeepLinkManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10201 /* DeepLinkManager.swift */; };
 		3DD9C4072F13BD5400087738 /* SocketIO in Frameworks */ = {isa = PBXBuildFile; productRef = 3DD9C4062F13BD5400087738 /* SocketIO */; };
 		A10001 /* PM5MonitorApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002 /* PM5MonitorApp.swift */; };
 		A10003 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10004 /* ContentView.swift */; };
@@ -32,12 +31,12 @@
 		A10029 /* WalletView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1002A /* WalletView.swift */; };
 		A10090 /* NetworkService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10091 /* NetworkService.swift */; };
 		A10100 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A10101 /* Assets.xcassets */; };
+		A10200 /* DeepLinkManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10201 /* DeepLinkManager.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		3DFA068C2F0C802000873A73 /* PM5Monitor.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PM5Monitor.entitlements; sourceTree = "<group>"; };
 		7DD70A54E89F2A48ACCE0C96 /* WalletDeepLinkService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WalletDeepLinkService.swift; sourceTree = "<group>"; };
-		A10201 /* DeepLinkManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepLinkManager.swift; sourceTree = "<group>"; };
 		A10002 /* PM5MonitorApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PM5MonitorApp.swift; sourceTree = "<group>"; };
 		A10004 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		A10006 /* BLEManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BLEManager.swift; sourceTree = "<group>"; };
@@ -62,6 +61,7 @@
 		A1002A /* WalletView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WalletView.swift; sourceTree = "<group>"; };
 		A10091 /* NetworkService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkService.swift; sourceTree = "<group>"; };
 		A10101 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A10201 /* DeepLinkManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepLinkManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -229,7 +229,7 @@
 			);
 			mainGroup = A10040;
 			packageReferences = (
-				3DD9C4052F13BD5400087738 /* XCRemoteSwiftPackageReference "socket.io-client-swift" */,
+				3DD9C4052F13BD5400087738 /* XCRemoteSwiftPackageReference "socket" */,
 			);
 			productRefGroup = A10042 /* Products */;
 			projectDirPath = "";
@@ -461,7 +461,7 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		3DD9C4052F13BD5400087738 /* XCRemoteSwiftPackageReference "socket.io-client-swift" */ = {
+		3DD9C4052F13BD5400087738 /* XCRemoteSwiftPackageReference "socket" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/socketio/socket.io-client-swift";
 			requirement = {
@@ -474,7 +474,7 @@
 /* Begin XCSwiftPackageProductDependency section */
 		3DD9C4062F13BD5400087738 /* SocketIO */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 3DD9C4052F13BD5400087738 /* XCRemoteSwiftPackageReference "socket.io-client-swift" */;
+			package = 3DD9C4052F13BD5400087738 /* XCRemoteSwiftPackageReference "socket" */;
 			productName = SocketIO;
 		};
 /* End XCSwiftPackageProductDependency section */
