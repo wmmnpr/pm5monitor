@@ -2,6 +2,7 @@ import SwiftUI
 
 @main
 struct PM5MonitorApp: App {
+    @StateObject private var deepLinkManager = DeepLinkManager()
 
     init() {
         // Initialize Firebase
@@ -10,7 +11,10 @@ struct PM5MonitorApp: App {
 
     var body: some Scene {
         WindowGroup {
-            MainTabView()
+            MainTabView(deepLinkManager: deepLinkManager)
+                .onOpenURL { url in
+                    deepLinkManager.handleURL(url)
+                }
         }
     }
 }

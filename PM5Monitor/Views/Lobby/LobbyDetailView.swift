@@ -66,6 +66,17 @@ struct LobbyDetailView: View {
         .background(Color(.systemGroupedBackground))
         .navigationTitle("Lobby")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                ShareLink(
+                    item: URL(string: "pm5racing://lobby/\(lobby.id)")!,
+                    subject: Text("Join my PM5 Race!"),
+                    message: Text("Join my \(lobby.distance?.displayName ?? "race")!")
+                ) {
+                    Image(systemName: "square.and.arrow.up")
+                }
+            }
+        }
         .alert("Wallet Required", isPresented: $showWalletRequired) {
             Button("OK", role: .cancel) {}
         } message: {

@@ -4,6 +4,7 @@ struct LobbyListView: View {
     @ObservedObject var lobbyService: LobbyService
     @ObservedObject var raceService: RaceService
     @ObservedObject var authService: AuthService
+    @Binding var deepLinkLobby: Lobby?
 
     @State private var showCreateLobby = false
 
@@ -44,6 +45,19 @@ struct LobbyListView: View {
             }
             .task {
                 try? await lobbyService.fetchAvailableLobbies()
+            }
+            .navigationDestination(isPresented: Binding(
+                get: { deepLinkLobby != nil },
+                set: { if !$0 { deepLinkLobby = nil } }
+            )) {
+                if let lobby = deepLinkLobby {
+                    LobbyDetailView(
+                        lobby: lobby,
+                        lobbyService: lobbyService,
+                        authService: authService,
+                        networkService: NetworkService.shared
+                    )
+                }
             }
         }
     }
@@ -172,6 +186,7 @@ struct LobbyRow: View {
     LobbyListView(
         lobbyService: LobbyService(),
         raceService: RaceService(),
-        authService: AuthService()
+        authService: AuthService(),
+        deepLinkLobby: .constant(nil)
     )
 }

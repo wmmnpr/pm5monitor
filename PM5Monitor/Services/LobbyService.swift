@@ -232,7 +232,7 @@ class LobbyService: ObservableObject {
 
     // MARK: - Conversion Helpers
 
-    private func convertServerLobby(_ server: ServerLobby) -> Lobby {
+    func convertServerLobby(_ server: ServerLobby) -> Lobby {
         let raceResults: [LobbyRaceResult]? = server.raceResults?.map { result in
             LobbyRaceResult(
                 oderId: result.oderId,

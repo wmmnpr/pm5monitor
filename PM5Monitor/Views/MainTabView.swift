@@ -6,8 +6,16 @@ struct MainTabView: View {
     @StateObject private var raceService = RaceService()
     @StateObject private var bleManager = BLEManager()
     @ObservedObject private var networkService = NetworkService.shared
+    @ObservedObject var deepLinkManager: DeepLinkManager
 
     @State private var selectedTab = 0
+    @State private var deepLinkLobby: Lobby?
+    @State private var deepLinkError: String?
+    @State private var showDeepLinkError = false
+
+    init(deepLinkManager: DeepLinkManager = DeepLinkManager()) {
+        self._deepLinkManager = ObservedObject(wrappedValue: deepLinkManager)
+    }
 
     var body: some View {
         Group {
@@ -41,7 +49,8 @@ struct MainTabView: View {
                         LobbyListView(
                             lobbyService: lobbyService,
                             raceService: raceService,
-                            authService: authService
+                            authService: authService,
+                            deepLinkLobby: $deepLinkLobby
                         )
                         .tabItem {
                             Label("Lobby", systemImage: "person.3.fill")
@@ -71,6 +80,57 @@ struct MainTabView: View {
         .preferredColorScheme(.dark)
         .onAppear {
             setupNetworkCallbacks()
+        }
+        .onChange(of: deepLinkManager.pendingLobbyId) { lobbyId in
+            guard let lobbyId = lobbyId else { return }
+            guard authService.isAuthenticated else { return }
+            handleDeepLink(lobbyId: lobbyId)
+        }
+        .onChange(of: authService.isAuthenticated) { isAuthenticated in
+            guard isAuthenticated, let lobbyId = deepLinkManager.pendingLobbyId else { return }
+            handleDeepLink(lobbyId: lobbyId)
+        }
+        .alert("Unable to Open Lobby", isPresented: $showDeepLinkError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(deepLinkError ?? "An unknown error occurred.")
+        }
+    }
+
+    private func handleDeepLink(lobbyId: String) {
+        Task {
+            guard let serverLobby = await networkService.fetchLobby(id: lobbyId) else {
+                deepLinkError = "Lobby not found. It may have been removed."
+                showDeepLinkError = true
+                deepLinkManager.pendingLobbyId = nil
+                return
+            }
+
+            let lobby = lobbyService.convertServerLobby(serverLobby)
+
+            switch lobby.status {
+            case .completed:
+                deepLinkError = "This race has already been completed."
+                showDeepLinkError = true
+                deepLinkManager.pendingLobbyId = nil
+                return
+            case .inProgress:
+                deepLinkError = "This race is already in progress."
+                showDeepLinkError = true
+                deepLinkManager.pendingLobbyId = nil
+                return
+            case .cancelled:
+                deepLinkError = "This lobby has been cancelled."
+                showDeepLinkError = true
+                deepLinkManager.pendingLobbyId = nil
+                return
+            case .waiting, .starting:
+                break
+            }
+
+            selectedTab = 1
+            deepLinkLobby = lobby
+            deepLinkManager.pendingLobbyId = nil
         }
     }
 

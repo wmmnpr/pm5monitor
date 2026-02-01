@@ -32,7 +32,15 @@ enum LobbyStatus: String, Codable {
 }
 
 /// A race lobby that players can join
-struct Lobby: Codable, Identifiable {
+struct Lobby: Codable, Identifiable, Hashable {
+    static func == (lhs: Lobby, rhs: Lobby) -> Bool {
+        lhs.id == rhs.id
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+
     let id: String
     let creatorId: String
     var raceDistance: Int // meters (350, 500, 1000, 2000, 5000, 10000)
