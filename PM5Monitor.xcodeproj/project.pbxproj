@@ -8,6 +8,9 @@
 
 /* Begin PBXBuildFile section */
 		1CA2A3C14D0393DD190526AA /* WalletDeepLinkService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DD70A54E89F2A48ACCE0C96 /* WalletDeepLinkService.swift */; };
+		3DBB55952F2FA84200C82BA5 /* SocketIO in Frameworks */ = {isa = PBXBuildFile; productRef = 3DBB55942F2FA84200C82BA5 /* SocketIO */; };
+		3DBB55972F2FA93A00C82BA5 /* SocketIO in Frameworks */ = {isa = PBXBuildFile; productRef = 3DBB55962F2FA93A00C82BA5 /* SocketIO */; };
+		3DBB559C2F2FABAD00C82BA5 /* SocketIO in Frameworks */ = {isa = PBXBuildFile; productRef = 3DBB559B2F2FABAD00C82BA5 /* SocketIO */; };
 		3DD9C4072F13BD5400087738 /* SocketIO in Frameworks */ = {isa = PBXBuildFile; productRef = 3DD9C4062F13BD5400087738 /* SocketIO */; };
 		A10001 /* PM5MonitorApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002 /* PM5MonitorApp.swift */; };
 		A10003 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10004 /* ContentView.swift */; };
@@ -32,6 +35,24 @@
 		A10090 /* NetworkService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10091 /* NetworkService.swift */; };
 		A10100 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A10101 /* Assets.xcassets */; };
 		A10200 /* DeepLinkManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10201 /* DeepLinkManager.swift */; };
+		A10300 /* AppIcon-76@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = A10301 /* AppIcon-76@2x.png */; };
+		A10302 /* AppIcon-60@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = A10303 /* AppIcon-60@2x.png */; };
+		A10310 /* AppIcon-20@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = A10311 /* AppIcon-20@2x.png */; };
+		A10312 /* AppIcon-20@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = A10313 /* AppIcon-20@3x.png */; };
+		A10314 /* AppIcon-29@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = A10315 /* AppIcon-29@2x.png */; };
+		A10316 /* AppIcon-29@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = A10317 /* AppIcon-29@3x.png */; };
+		A10318 /* AppIcon-40@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = A10319 /* AppIcon-40@2x.png */; };
+		A1031A /* AppIcon-40@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = A1031B /* AppIcon-40@3x.png */; };
+		A1031C /* AppIcon-60@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = A1031D /* AppIcon-60@3x.png */; };
+		A1031E /* AppIcon-20.png in Resources */ = {isa = PBXBuildFile; fileRef = A1031F /* AppIcon-20.png */; };
+		A10320 /* AppIcon-20~ipad@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = A10321 /* AppIcon-20~ipad@2x.png */; };
+		A10322 /* AppIcon-29.png in Resources */ = {isa = PBXBuildFile; fileRef = A10323 /* AppIcon-29.png */; };
+		A10324 /* AppIcon-29~ipad@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = A10325 /* AppIcon-29~ipad@2x.png */; };
+		A10326 /* AppIcon-40.png in Resources */ = {isa = PBXBuildFile; fileRef = A10327 /* AppIcon-40.png */; };
+		A10328 /* AppIcon-40~ipad@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = A10329 /* AppIcon-40~ipad@2x.png */; };
+		A1032A /* AppIcon-76.png in Resources */ = {isa = PBXBuildFile; fileRef = A1032B /* AppIcon-76.png */; };
+		A1032C /* AppIcon-83.5@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = A1032D /* AppIcon-83.5@2x.png */; };
+		A1032E /* AppIcon-1024.png in Resources */ = {isa = PBXBuildFile; fileRef = A1032F /* AppIcon-1024.png */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -62,6 +83,24 @@
 		A10091 /* NetworkService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkService.swift; sourceTree = "<group>"; };
 		A10101 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A10201 /* DeepLinkManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepLinkManager.swift; sourceTree = "<group>"; };
+		A10301 /* AppIcon-76@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "AppIcon-76@2x.png"; sourceTree = "<group>"; };
+		A10303 /* AppIcon-60@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "AppIcon-60@2x.png"; sourceTree = "<group>"; };
+		A10311 /* AppIcon-20@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "AppIcon-20@2x.png"; sourceTree = "<group>"; };
+		A10313 /* AppIcon-20@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "AppIcon-20@3x.png"; sourceTree = "<group>"; };
+		A10315 /* AppIcon-29@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "AppIcon-29@2x.png"; sourceTree = "<group>"; };
+		A10317 /* AppIcon-29@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "AppIcon-29@3x.png"; sourceTree = "<group>"; };
+		A10319 /* AppIcon-40@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "AppIcon-40@2x.png"; sourceTree = "<group>"; };
+		A1031B /* AppIcon-40@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "AppIcon-40@3x.png"; sourceTree = "<group>"; };
+		A1031D /* AppIcon-60@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "AppIcon-60@3x.png"; sourceTree = "<group>"; };
+		A1031F /* AppIcon-20.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "AppIcon-20.png"; sourceTree = "<group>"; };
+		A10321 /* AppIcon-20~ipad@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "AppIcon-20~ipad@2x.png"; sourceTree = "<group>"; };
+		A10323 /* AppIcon-29.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "AppIcon-29.png"; sourceTree = "<group>"; };
+		A10325 /* AppIcon-29~ipad@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "AppIcon-29~ipad@2x.png"; sourceTree = "<group>"; };
+		A10327 /* AppIcon-40.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "AppIcon-40.png"; sourceTree = "<group>"; };
+		A10329 /* AppIcon-40~ipad@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "AppIcon-40~ipad@2x.png"; sourceTree = "<group>"; };
+		A1032B /* AppIcon-76.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "AppIcon-76.png"; sourceTree = "<group>"; };
+		A1032D /* AppIcon-83.5@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "AppIcon-83.5@2x.png"; sourceTree = "<group>"; };
+		A1032F /* AppIcon-1024.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "AppIcon-1024.png"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -70,6 +109,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				3DD9C4072F13BD5400087738 /* SocketIO in Frameworks */,
+				3DBB559C2F2FABAD00C82BA5 /* SocketIO in Frameworks */,
+				3DBB55952F2FA84200C82BA5 /* SocketIO in Frameworks */,
+				3DBB55972F2FA93A00C82BA5 /* SocketIO in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -98,6 +140,24 @@
 				A1000A /* CameraManager.swift */,
 				A10007 /* Info.plist */,
 				A10101 /* Assets.xcassets */,
+				A10301 /* AppIcon-76@2x.png */,
+				A10303 /* AppIcon-60@2x.png */,
+				A10311 /* AppIcon-20@2x.png */,
+				A10313 /* AppIcon-20@3x.png */,
+				A10315 /* AppIcon-29@2x.png */,
+				A10317 /* AppIcon-29@3x.png */,
+				A10319 /* AppIcon-40@2x.png */,
+				A1031B /* AppIcon-40@3x.png */,
+				A1031D /* AppIcon-60@3x.png */,
+				A1031F /* AppIcon-20.png */,
+				A10321 /* AppIcon-20~ipad@2x.png */,
+				A10323 /* AppIcon-29.png */,
+				A10325 /* AppIcon-29~ipad@2x.png */,
+				A10327 /* AppIcon-40.png */,
+				A10329 /* AppIcon-40~ipad@2x.png */,
+				A1032B /* AppIcon-76.png */,
+				A1032D /* AppIcon-83.5@2x.png */,
+				A1032F /* AppIcon-1024.png */,
 			);
 			path = PM5Monitor;
 			sourceTree = "<group>";
@@ -246,6 +306,24 @@
 			buildActionMask = 2147483647;
 			files = (
 				A10100 /* Assets.xcassets in Resources */,
+				A10300 /* AppIcon-76@2x.png in Resources */,
+				A10302 /* AppIcon-60@2x.png in Resources */,
+				A10310 /* AppIcon-20@2x.png in Resources */,
+				A10312 /* AppIcon-20@3x.png in Resources */,
+				A10314 /* AppIcon-29@2x.png in Resources */,
+				A10316 /* AppIcon-29@3x.png in Resources */,
+				A10318 /* AppIcon-40@2x.png in Resources */,
+				A1031A /* AppIcon-40@3x.png in Resources */,
+				A1031C /* AppIcon-60@3x.png in Resources */,
+				A1031E /* AppIcon-20.png in Resources */,
+				A10320 /* AppIcon-20~ipad@2x.png in Resources */,
+				A10322 /* AppIcon-29.png in Resources */,
+				A10324 /* AppIcon-29~ipad@2x.png in Resources */,
+				A10326 /* AppIcon-40.png in Resources */,
+				A10328 /* AppIcon-40~ipad@2x.png in Resources */,
+				A1032A /* AppIcon-76.png in Resources */,
+				A1032C /* AppIcon-83.5@2x.png in Resources */,
+				A1032E /* AppIcon-1024.png in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -380,6 +458,8 @@
 		A10082 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = PM5Monitor/PM5Monitor.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -395,6 +475,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UIRequiredDeviceCapabilities = "bluetooth-le arm64";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -410,6 +491,8 @@
 		A10083 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = PM5Monitor/PM5Monitor.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -425,6 +508,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UIRequiredDeviceCapabilities = "bluetooth-le arm64";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -472,6 +556,21 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		3DBB55942F2FA84200C82BA5 /* SocketIO */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 3DD9C4052F13BD5400087738 /* XCRemoteSwiftPackageReference "socket" */;
+			productName = SocketIO;
+		};
+		3DBB55962F2FA93A00C82BA5 /* SocketIO */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 3DD9C4052F13BD5400087738 /* XCRemoteSwiftPackageReference "socket" */;
+			productName = SocketIO;
+		};
+		3DBB559B2F2FABAD00C82BA5 /* SocketIO */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 3DD9C4052F13BD5400087738 /* XCRemoteSwiftPackageReference "socket" */;
+			productName = SocketIO;
+		};
 		3DD9C4062F13BD5400087738 /* SocketIO */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 3DD9C4052F13BD5400087738 /* XCRemoteSwiftPackageReference "socket" */;
