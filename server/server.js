@@ -358,6 +358,23 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Rejoin lobby room (for reconnection or after REST join)
+  socket.on('rejoinLobby', (data) => {
+    const { lobbyId } = data;
+    const lobby = lobbies.get(lobbyId);
+    if (lobby) {
+      socket.join(`lobby:${lobbyId}`);
+      console.log(`Socket ${socket.id} rejoined lobby room ${lobbyId}`);
+      // Send current lobby state to the rejoining client
+      socket.emit('lobbyUpdated', lobby);
+      // If there's an active race, send current race state
+      const race = Array.from(races.values()).find(r => r.lobbyId === lobbyId && r.status === 'racing');
+      if (race) {
+        socket.emit('raceUpdate', race);
+      }
+    }
+  });
+
   // ---- RACE EVENTS ----
 
   socket.on('startRace', (data) => {
