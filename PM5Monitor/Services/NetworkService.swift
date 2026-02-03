@@ -192,6 +192,7 @@ class NetworkService: ObservableObject {
         // Rejoin lobby room if we were in one
         if let lobby = currentLobby {
             print("NetworkService: Rejoining lobby \(lobby.id)")
+            socket?.emit("rejoinLobby", ["lobbyId": lobby.id])
         }
     }
 
@@ -705,6 +706,12 @@ class NetworkService: ObservableObject {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         currentLobby = try decoder.decode(ServerLobby.self, from: data)
+
+        // Join Socket.IO room if socket is connected (REST join doesn't add to room)
+        if isSocketConnected, let socket = socket {
+            print("NetworkService: Joining socket room after REST join")
+            socket.emit("rejoinLobby", ["lobbyId": lobbyId])
+        }
     }
 
     private func addBotREST(lobbyId: String, difficulty: String) async throws {
