@@ -3,6 +3,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 const { v4: uuidv4 } = require('uuid');
+const firestore = require('./firestoreSync');
 
 const app = express();
 app.use(cors());
@@ -97,6 +98,34 @@ function getLobbyList() {
       ...l,
       participantCount: l.participants.length
     }));
+}
+
+function getLobbyListForUser(userId) {
+  return Array.from(lobbies.values())
+    .filter(l => {
+      if (l.status !== 'waiting' && l.status !== 'completed') return false;
+      // Show lobby if user is the creator or a participant
+      if (l.creatorId === userId) return true;
+      if (l.participants.some(p => p.id === userId || p.oderId === userId)) return true;
+      return false;
+    })
+    .map(l => ({
+      ...l,
+      participantCount: l.participants.length
+    }));
+}
+
+// Send filtered lobby lists to all connected sockets
+function broadcastLobbyLists() {
+  for (const [, s] of io.sockets.sockets) {
+    const userId = s.userId;
+    if (userId) {
+      s.emit('lobbyList', getLobbyListForUser(userId));
+    } else {
+      // No userId identified yet — send empty list
+      s.emit('lobbyList', []);
+    }
+  }
 }
 
 function completeRace(lobbyId, race) {
@@ -296,8 +325,16 @@ function simulateBots(race) {
 io.on('connection', (socket) => {
   console.log(`io Client connected: ${socket.id}`);
 
-  // Send current lobby list on connect
-  socket.emit('lobbyList', getLobbyList());
+  // Client identifies itself with userId
+  socket.on('identify', (data) => {
+    const userId = data.userId;
+    if (userId) {
+      socket.userId = userId;
+      console.log(`Socket ${socket.id} identified as user ${userId}`);
+      // Send filtered lobby list now that we know who they are
+      socket.emit('lobbyList', getLobbyListForUser(userId));
+    }
+  });
 
   // ---- LOBBY EVENTS ----
 
@@ -305,14 +342,20 @@ io.on('connection', (socket) => {
     console.log(`socket createLobby`);
     const lobby = createLobby(data);
     socket.join(`lobby:${lobby.id}`);
-    io.emit('lobbyList', getLobbyList());
+    broadcastLobbyLists();
     socket.emit('lobbyCreated', lobby);
+    firestore.syncLobbyCreated(lobby);
     console.log(`Lobby created: ${lobby.id}`);
   });
 
-  socket.on('getLobbies', () => {
+  socket.on('getLobbies', (data) => {
     console.log("socket getLobbies");
-    socket.emit('lobbyList', getLobbyList());
+    const userId = (data && data.userId) || socket.userId;
+    if (userId) {
+      socket.emit('lobbyList', getLobbyListForUser(userId));
+    } else {
+      socket.emit('lobbyList', []);
+    }
   });
 
   socket.on('joinLobby', (data) => {
@@ -322,7 +365,8 @@ io.on('connection', (socket) => {
     if (lobby) {
       socket.join(`lobby:${lobbyId}`);
       io.to(`lobby:${lobbyId}`).emit('lobbyUpdated', lobby);
-      io.emit('lobbyList', getLobbyList());
+      broadcastLobbyLists();
+      firestore.syncLobbyStatusUpdate(lobbyId, lobby.status, lobby.participants.length);
       console.log(`${participant.displayName} joined lobby ${lobbyId}`);
     }
   });
@@ -333,7 +377,8 @@ io.on('connection', (socket) => {
     const result = addBot(lobbyId, difficulty);
     if (result) {
       io.to(`lobby:${lobbyId}`).emit('lobbyUpdated', result.lobby);
-      io.emit('lobbyList', getLobbyList());
+      broadcastLobbyLists();
+      firestore.syncLobbyStatusUpdate(lobbyId, result.lobby.status, result.lobby.participants.length);
       console.log(`Bot added to lobby ${lobbyId} with difficulty ${difficulty}`);
     }
   });
@@ -354,7 +399,8 @@ io.on('connection', (socket) => {
     if (lobby) {
       socket.leave(`lobby:${lobbyId}`);
       io.to(`lobby:${lobbyId}`).emit('lobbyUpdated', lobby);
-      io.emit('lobbyList', getLobbyList());
+      broadcastLobbyLists();
+      firestore.syncLobbyStatusUpdate(lobbyId, lobby.status, lobby.participants.length);
     }
   });
 
@@ -381,6 +427,8 @@ io.on('connection', (socket) => {
     const { lobbyId } = data;
     const race = startRace(lobbyId);
     if (race) {
+      firestore.syncLobbyStatusUpdate(lobbyId, 'in_progress', race.participants.length);
+
       // 5 second countdown
       let countdown = 5;
       const countdownInterval = setInterval(() => {
@@ -407,9 +455,16 @@ io.on('connection', (socket) => {
             if (allFinished) {
               race.status = 'completed';
               clearInterval(botInterval);
-              completeRace(lobbyId, race);
+              const completedLobby = completeRace(lobbyId, race);
               io.to(`lobby:${lobbyId}`).emit('raceCompleted', race);
-              io.emit('lobbyList', getLobbyList());
+              broadcastLobbyLists();
+
+              if (!race.firestoreSynced) {
+                race.firestoreSynced = true;
+                firestore.syncRaceCompleted(race);
+                if (completedLobby) firestore.syncLobbyCompleted(completedLobby);
+                firestore.updateUserStats(race);
+              }
             }
           }, 500); // Update every 500ms
         }
@@ -429,9 +484,16 @@ io.on('connection', (socket) => {
       const allFinished = race.participants.every(p => p.isFinished);
       if (allFinished && race.status === 'racing') {
         race.status = 'completed';
-        completeRace(race.lobbyId, race);
+        const completedLobby = completeRace(race.lobbyId, race);
         io.to(`lobby:${race.lobbyId}`).emit('raceCompleted', race);
-        io.emit('lobbyList', getLobbyList());
+        broadcastLobbyLists();
+
+        if (!race.firestoreSynced) {
+          race.firestoreSynced = true;
+          firestore.syncRaceCompleted(race);
+          if (completedLobby) firestore.syncLobbyCompleted(completedLobby);
+          firestore.updateUserStats(race);
+        }
       }
     }
   });
@@ -457,7 +519,12 @@ app.get('/', (req, res) => {
 
 app.get('/lobbies', (req, res) => {
   console.log("rest GET /lobbies called");
-  res.json(getLobbyList());
+  const userId = req.query.userId;
+  if (userId) {
+    res.json(getLobbyListForUser(userId));
+  } else {
+    res.json([]);
+  }
 });
 
 app.get('/lobby/:id', (req, res) => {
@@ -474,7 +541,8 @@ app.get('/lobby/:id', (req, res) => {
 app.post('/api/lobby', (req, res) => {
   console.log(`POST /api/lobby called`);
   const lobby = createLobby(req.body);
-  io.emit('lobbyList', getLobbyList());
+  broadcastLobbyLists();
+  firestore.syncLobbyCreated(lobby);
   res.json(lobby);
 });
 
@@ -484,7 +552,8 @@ app.post('/api/lobby/:id/join', (req, res) => {
   const lobby = addParticipant(req.params.id, req.body);
   if (lobby) {
     io.to(`lobby:${req.params.id}`).emit('lobbyUpdated', lobby);
-    io.emit('lobbyList', getLobbyList());
+    broadcastLobbyLists();
+    firestore.syncLobbyStatusUpdate(req.params.id, lobby.status, lobby.participants.length);
     res.json(lobby);
   } else {
     res.status(400).json({ error: 'Cannot join lobby' });
@@ -497,7 +566,8 @@ app.post('/api/lobby/:id/bot', (req, res) => {
   const result = addBot(req.params.id, req.body.difficulty || 'medium');
   if (result) {
     io.to(`lobby:${req.params.id}`).emit('lobbyUpdated', result.lobby);
-    io.emit('lobbyList', getLobbyList());
+    broadcastLobbyLists();
+    firestore.syncLobbyStatusUpdate(req.params.id, result.lobby.status, result.lobby.participants.length);
     res.json(result.lobby);
   } else {
     res.status(400).json({ error: 'Cannot add bot' });
@@ -522,6 +592,8 @@ app.post('/api/lobby/:id/start', (req, res) => {
   const lobbyId = req.params.id;
   const race = startRace(lobbyId);
   if (race) {
+    firestore.syncLobbyStatusUpdate(lobbyId, 'in_progress', race.participants.length);
+
     // Start countdown
     let countdown = 5;
     const countdownInterval = setInterval(() => {
@@ -546,9 +618,16 @@ app.post('/api/lobby/:id/start', (req, res) => {
           if (allFinished) {
             race.status = 'completed';
             clearInterval(botInterval);
-            completeRace(lobbyId, race);
+            const completedLobby = completeRace(lobbyId, race);
             io.to(`lobby:${lobbyId}`).emit('raceCompleted', race);
-            io.emit('lobbyList', getLobbyList());
+            broadcastLobbyLists();
+
+            if (!race.firestoreSynced) {
+              race.firestoreSynced = true;
+              firestore.syncRaceCompleted(race);
+              if (completedLobby) firestore.syncLobbyCompleted(completedLobby);
+              firestore.updateUserStats(race);
+            }
           }
         }, 500);
       }
@@ -570,9 +649,16 @@ app.post('/api/race/:id/update', (req, res) => {
     const allFinished = race.participants.every(p => p.isFinished);
     if (allFinished && race.status === 'racing') {
       race.status = 'completed';
-      completeRace(race.lobbyId, race);
+      const completedLobby = completeRace(race.lobbyId, race);
       io.to(`lobby:${race.lobbyId}`).emit('raceCompleted', race);
-      io.emit('lobbyList', getLobbyList());
+      broadcastLobbyLists();
+
+      if (!race.firestoreSynced) {
+        race.firestoreSynced = true;
+        firestore.syncRaceCompleted(race);
+        if (completedLobby) firestore.syncLobbyCompleted(completedLobby);
+        firestore.updateUserStats(race);
+      }
     }
 
     res.json(race);
@@ -591,9 +677,45 @@ app.get('/api/race/:id', (req, res) => {
   }
 });
 
+// Get user profile
+app.get('/api/user/:id/profile', async (req, res) => {
+  console.log(`GET /api/user/${req.params.id}/profile called`);
+  const profile = await firestore.getUserProfile(req.params.id);
+  if (profile) {
+    res.json(profile);
+  } else {
+    res.status(404).json({ error: 'User profile not found' });
+  }
+});
+
+// Save user profile
+app.post('/api/user/:id/profile', async (req, res) => {
+  console.log(`POST /api/user/${req.params.id}/profile called`);
+  const profile = await firestore.saveUserProfile(req.params.id, req.body);
+  if (profile) {
+    res.json(profile);
+  } else {
+    res.status(500).json({ error: 'Failed to save user profile' });
+  }
+});
+
 // ============================================
 // START SERVER
 // ============================================
+
+// Recover waiting lobbies from Firestore on startup
+firestore.loadWaitingLobbies().then(recoveredLobbies => {
+  for (const lobby of recoveredLobbies) {
+    if (!lobbies.has(lobby.id)) {
+      lobbies.set(lobby.id, lobby);
+    }
+  }
+  if (recoveredLobbies.length > 0) {
+    console.log(`Recovered ${recoveredLobbies.length} lobbies from Firestore`);
+  }
+}).catch(err => {
+  console.error('Lobby recovery failed:', err.message);
+});
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, '0.0.0.0', () => {

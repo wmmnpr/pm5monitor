@@ -15,6 +15,12 @@ struct PM5MonitorApp: App {
                 .onOpenURL { url in
                     deepLinkManager.handleURL(url)
                 }
+                .onAppear {
+                    UIApplication.shared.isIdleTimerDisabled = true
+                }
+                .onDisappear {
+                    UIApplication.shared.isIdleTimerDisabled = false
+                }
         }
     }
 }

@@ -40,7 +40,8 @@ class NetworkService: ObservableObject {
     /// Production: "https://your-server.railway.app"
     //static let serverURL = "https://pm5monitor-bfcjgxdwh3d7azgg.eastus-01.azurewebsites.net"
     //static let serverURL = "http://localhost:3000"
-    static let serverURL = "https://pm5raceserver-hffucbdhf9evcje3.eastus-01.azurewebsites.net"
+    //static let serverURL = "https://pm5raceserver-hffucbdhf9evcje3.eastus-01.azurewebsites.net"
+    static let serverURL = "https://ce2b-2a02-3100-5805-9200-dd1b-b8c6-169c-b673.ngrok-free.app"
 
     // MARK: - Singleton
 
@@ -54,6 +55,11 @@ class NetworkService: ObservableObject {
     @Published var currentRace: ServerRace?
     @Published var countdown: Int?
     @Published var error: NetworkError?
+
+    // MARK: - User Identity
+
+    /// The current user's ID, used for filtered lobby lists
+    var userId: String?
 
     // MARK: - Socket.IO
 
@@ -186,8 +192,17 @@ class NetworkService: ObservableObject {
         // Stop fallback polling since socket is connected
         stopPolling()
 
+        // Identify this socket with the user's ID for filtered lobby lists
+        if let userId = userId {
+            socket?.emit("identify", ["userId": userId])
+        }
+
         // Request initial lobby list
-        socket?.emit("getLobbies")
+        if let userId = userId {
+            socket?.emit("getLobbies", ["userId": userId])
+        } else {
+            socket?.emit("getLobbies")
+        }
 
         // Rejoin lobby room if we were in one
         if let lobby = currentLobby {
@@ -417,7 +432,11 @@ class NetworkService: ObservableObject {
     // MARK: - REST API Calls (Fallback)
 
     func fetchLobbies() async {
-        guard let url = URL(string: "\(Self.serverURL)/lobbies") else { return }
+        var urlString = "\(Self.serverURL)/lobbies"
+        if let userId = userId {
+            urlString += "?userId=\(userId)"
+        }
+        guard let url = URL(string: urlString) else { return }
 
         do {
             let (data, _) = try await URLSession.shared.data(from: url)
@@ -638,6 +657,47 @@ class NetworkService: ObservableObject {
             socket.emit("raceUpdate", data)
         } else {
             await sendRaceUpdateREST(raceId: raceId, oderId: oderId, distance: distance, pace: pace, watts: watts)
+        }
+    }
+
+    // MARK: - User Profile (Firestore via Server)
+
+    /// Fetch user profile from server (backed by Firestore)
+    func fetchUserProfile(userId: String) async -> UserProfile? {
+        guard let url = URL(string: "\(Self.serverURL)/api/user/\(userId)/profile") else { return nil }
+
+        do {
+            let (data, response) = try await URLSession.shared.data(from: url)
+            guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+                return nil
+            }
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            return try decoder.decode(UserProfile.self, from: data)
+        } catch {
+            print("NetworkService: Failed to fetch user profile: \(error)")
+            return nil
+        }
+    }
+
+    /// Save user profile to server (persisted in Firestore)
+    func saveUserProfile(userId: String, displayName: String, email: String?, walletAddress: String?) async {
+        guard let url = URL(string: "\(Self.serverURL)/api/user/\(userId)/profile") else { return }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        var body: [String: Any] = ["displayName": displayName]
+        if let email = email { body["email"] = email }
+        if let walletAddress = walletAddress { body["walletAddress"] = walletAddress }
+
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            let (_, _) = try await URLSession.shared.data(for: request)
+            print("NetworkService: User profile saved for \(userId)")
+        } catch {
+            print("NetworkService: Failed to save user profile: \(error)")
         }
     }
 

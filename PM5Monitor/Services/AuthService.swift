@@ -30,6 +30,7 @@ class AuthService: NSObject, ObservableObject {
     // MARK: - Private
 
     private let userDefaultsKey = "pm5_current_user"
+    private let guestIdKey = "pm5_guest_id"
 
     // MARK: - Init
 
@@ -54,6 +55,15 @@ class AuthService: NSObject, ObservableObject {
                 displayName: user.displayName ?? "Rower"
             )
             isAuthenticated = true
+            NetworkService.shared.userId = user.id
+
+            // Enrich profile with persistent stats from Firestore (via server)
+            let userId = user.id
+            Task {
+                if let serverProfile = await NetworkService.shared.fetchUserProfile(userId: userId) {
+                    self.userProfile = serverProfile
+                }
+            }
         }
     }
 
@@ -93,8 +103,9 @@ class AuthService: NSObject, ObservableObject {
         isLoading = true
         error = nil
 
-        // Generate a unique guest ID
-        let guestId = "guest-\(UUID().uuidString.prefix(8))"
+        // Reuse existing guest ID so stats persist across sign-out/sign-in
+        let guestId = UserDefaults.standard.string(forKey: guestIdKey) ?? "guest-\(UUID().uuidString.prefix(8))"
+        UserDefaults.standard.set(guestId, forKey: guestIdKey)
 
         let user = AuthUser(
             id: guestId,
@@ -109,9 +120,20 @@ class AuthService: NSObject, ObservableObject {
             displayName: displayName
         )
         isAuthenticated = true
+        NetworkService.shared.userId = guestId
 
         saveUser(user)
         isLoading = false
+
+        // Persist profile to Firestore via server
+        Task {
+            await NetworkService.shared.saveUserProfile(
+                userId: guestId,
+                displayName: displayName,
+                email: nil,
+                walletAddress: nil
+            )
+        }
     }
 
     /// Sign out
@@ -120,6 +142,7 @@ class AuthService: NSObject, ObservableObject {
         currentUser = nil
         userProfile = nil
         isAuthenticated = false
+        NetworkService.shared.userId = nil
     }
 
     // MARK: - Wallet Integration
@@ -197,8 +220,20 @@ extension AuthService: ASAuthorizationControllerDelegate {
                 displayName: displayName ?? "Rower"
             )
             isAuthenticated = true
+            NetworkService.shared.userId = userId
 
             saveUser(user)
+
+            // Persist profile to Firestore via server
+            let finalDisplayName = displayName ?? "Rower"
+            Task {
+                await NetworkService.shared.saveUserProfile(
+                    userId: userId,
+                    displayName: finalDisplayName,
+                    email: email,
+                    walletAddress: nil
+                )
+            }
         }
     }
 
